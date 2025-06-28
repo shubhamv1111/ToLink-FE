@@ -7,18 +7,38 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
-*.local
+# Dependency directories
+node_modules/
+
+# Next.js build output
+.next/
+
+# Bun lockfile
+bun.lockb
+
+# Environment variables
+.env*
 
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
-.idea
+.idea/
 .DS_Store
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
+
+# OS generated files
+Thumbs.db
+
+# Misc
+*.local
+
+# Remove Vite leftovers if any
+.vite/
+
+# Remove dist if not used (for Vite, not Next.js)
+dist/
+dist-ssr/

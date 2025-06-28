@@ -1,7 +1,6 @@
-
 'use client'
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plus, Link2 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,6 +11,8 @@ import { DashboardStats } from '@/components/dashboard/DashboardStats';
 import { DashboardFilters } from '@/components/dashboard/DashboardFilters';
 import { UrlCard } from '@/components/dashboard/UrlCard';
 import { CreateLinkModal } from '@/components/dashboard/CreateLinkModal';
+import { useAuth } from '@/contexts/AuthContext';
+import { useRouter } from 'next/navigation';
 
 interface UrlData {
   id: string;
@@ -23,6 +24,8 @@ interface UrlData {
   lastClicked?: string;
   isPrivate: boolean;
   hasPassword: boolean;
+  urlName?: string;
+  password?: string;
 }
 
 const Dashboard = () => {
@@ -30,6 +33,8 @@ const Dashboard = () => {
   const [selectedFilter, setSelectedFilter] = useState('all');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const { toast } = useToast();
+  const { user, isAuthenticated, isLoading } = useAuth();
+  const router = useRouter();
 
   // Mock data with privacy and password settings
   const [urls, setUrls] = useState<UrlData[]>([
@@ -42,7 +47,8 @@ const Dashboard = () => {
       createdAt: '2024-01-15T10:30:00Z',
       lastClicked: '2024-01-20T14:22:00Z',
       isPrivate: false,
-      hasPassword: false
+      hasPassword: false,
+      urlName: 'My Important Link'
     },
     {
       id: '2',
@@ -53,7 +59,8 @@ const Dashboard = () => {
       createdAt: '2024-01-10T09:15:00Z',
       lastClicked: '2024-01-19T16:45:00Z',
       isPrivate: true,
-      hasPassword: false
+      hasPassword: false,
+      urlName: 'GitHub Repository'
     },
     {
       id: '3',
@@ -64,9 +71,36 @@ const Dashboard = () => {
       createdAt: '2024-01-08T14:20:00Z',
       lastClicked: '2024-01-18T11:30:00Z',
       isPrivate: false,
-      hasPassword: true
+      hasPassword: true,
+      urlName: 'Google Docs Link',
+      password: 'secret123'
     }
   ]);
+
+  // Check authentication
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+      router.push('/login');
+    }
+  }, [isAuthenticated, isLoading, router]);
+
+  // Show loading while checking auth
+  if (isLoading || !isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+        <Navbar />
+        <main className="container mx-auto px-4 py-8">
+          <div className="flex items-center justify-center min-h-[60vh]">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+              <p className="text-gray-600 dark:text-gray-300">Loading...</p>
+            </div>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
 
   const publicUrls = urls.filter(url => !url.isPrivate);
   const totalClicks = publicUrls.reduce((sum, url) => sum + url.clicks, 0);
@@ -97,13 +131,13 @@ const Dashboard = () => {
     });
   };
 
-  const togglePrivacy = (id: string) => {
+  const editUrl = (id: string, updatedData: any) => {
     setUrls(urls.map(url => 
-      url.id === id ? { ...url, isPrivate: !url.isPrivate } : url
+      url.id === id ? { ...url, ...updatedData } : url
     ));
     toast({
-      title: "Privacy Updated",
-      description: "Link privacy setting has been changed",
+      title: "URL Updated",
+      description: "The link has been updated successfully",
     });
   };
 
@@ -116,7 +150,9 @@ const Dashboard = () => {
       clicks: 0,
       createdAt: new Date().toISOString(),
       isPrivate: linkData.isPrivate,
-      hasPassword: linkData.hasPassword
+      hasPassword: linkData.hasPassword,
+      urlName: linkData.urlName,
+      password: linkData.password
     };
     
     setUrls([newUrl, ...urls]);
@@ -128,7 +164,8 @@ const Dashboard = () => {
 
   const filteredUrls = urls.filter(url => {
     const matchesSearch = url.originalUrl.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         url.shortCode.toLowerCase().includes(searchTerm.toLowerCase());
+                         url.shortCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         (url.urlName && url.urlName.toLowerCase().includes(searchTerm.toLowerCase()));
     
     if (selectedFilter === 'public') return matchesSearch && !url.isPrivate;
     if (selectedFilter === 'private') return matchesSearch && url.isPrivate;
@@ -180,7 +217,7 @@ const Dashboard = () => {
               url={url}
               onCopy={copyToClipboard}
               onDelete={deleteUrl}
-              onTogglePrivacy={togglePrivacy}
+              onEdit={editUrl}
             />
           ))}
         </div>

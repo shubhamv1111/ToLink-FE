@@ -1,4 +1,3 @@
-
 'use client'
 
 import React, { useState } from 'react';
@@ -9,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 
-export const ForgotPassword = () => {
+const ForgotPassword = () => {
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [emailSent, setEmailSent] = useState(false);

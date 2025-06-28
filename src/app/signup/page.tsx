@@ -1,56 +1,69 @@
-
 'use client'
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Eye, EyeOff, Mail, Lock, User, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
 
-export const Signup = () => {
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    password: '',
-    confirmPassword: ''
-  });
+export default function Signup() {
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  const { signup, isAuthenticated, isLoading } = useAuth();
+  const router = useRouter();
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData(prev => ({
-      ...prev,
-      [e.target.name]: e.target.value
-    }));
-  };
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      router.push('/dashboard');
+    }
+  }, [isAuthenticated, router]);
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (formData.password !== formData.confirmPassword) {
+    
+    if (password !== confirmPassword) {
       toast({
-        title: "Password Mismatch",
-        description: "Passwords do not match",
+        title: "Passwords Don't Match",
+        description: "Please make sure your passwords match",
         variant: "destructive",
       });
       return;
     }
 
-    setIsLoading(true);
+    if (password.length < 6) {
+      toast({
+        title: "Password Too Short",
+        description: "Password must be at least 6 characters long",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const success = await signup(name, email, password);
     
-    // Simulate signup process
-    setTimeout(() => {
+    if (success) {
       toast({
         title: "Account Created",
-        description: "Welcome to ToLink! Please check your email to verify your account.",
+        description: "Welcome to ToLink! Your account has been created successfully.",
       });
-      setIsLoading(false);
-      // Redirect to login would happen here
-      window.location.href = '/login';
-    }, 1500);
+      router.push('/dashboard');
+    } else {
+      toast({
+        title: "Signup Failed",
+        description: "Failed to create account. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleGoogleSignup = () => {
@@ -59,6 +72,17 @@ export const Signup = () => {
       description: "Google OAuth integration would happen here",
     });
   };
+
+  if (isLoading || isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex items-center justify-center p-4">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600 dark:text-gray-300">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex items-center justify-center p-4">
@@ -85,10 +109,9 @@ export const Signup = () => {
                 <User className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                 <Input
                   type="text"
-                  name="name"
-                  placeholder="Your full name"
-                  value={formData.name}
-                  onChange={handleInputChange}
+                  placeholder="John Doe"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
                   className="pl-10"
                   required
                 />
@@ -103,10 +126,9 @@ export const Signup = () => {
                 <Mail className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                 <Input
                   type="email"
-                  name="email"
                   placeholder="your@email.com"
-                  value={formData.email}
-                  onChange={handleInputChange}
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   className="pl-10"
                   required
                 />
@@ -121,10 +143,9 @@ export const Signup = () => {
                 <Lock className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                 <Input
                   type={showPassword ? 'text' : 'password'}
-                  name="password"
-                  placeholder="Create a strong password"
-                  value={formData.password}
-                  onChange={handleInputChange}
+                  placeholder="Create a password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                   className="pl-10 pr-10"
                   required
                 />
@@ -146,10 +167,9 @@ export const Signup = () => {
                 <Lock className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                 <Input
                   type={showConfirmPassword ? 'text' : 'password'}
-                  name="confirmPassword"
                   placeholder="Confirm your password"
-                  value={formData.confirmPassword}
-                  onChange={handleInputChange}
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
                   className="pl-10 pr-10"
                   required
                 />
@@ -166,7 +186,9 @@ export const Signup = () => {
             <div className="flex items-center">
               <input type="checkbox" className="rounded border-gray-300 text-blue-600" required />
               <span className="ml-2 text-sm text-gray-600 dark:text-gray-300">
-                I agree to the <a href="#" className="text-blue-600 hover:text-blue-800">Terms of Service</a> and{' '}
+                I agree to the{' '}
+                <a href="#" className="text-blue-600 hover:text-blue-800">Terms of Service</a>
+                {' '}and{' '}
                 <a href="#" className="text-blue-600 hover:text-blue-800">Privacy Policy</a>
               </span>
             </div>
@@ -216,6 +238,4 @@ export const Signup = () => {
       </div>
     </div>
   );
-};
-
-export default Signup;
+}
