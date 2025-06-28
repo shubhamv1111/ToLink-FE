@@ -275,15 +275,23 @@ export default function HomePage() {
                   )}
                 </div>
                 
-                <div className="flex flex-col sm:flex-row gap-4">
-                  <Button
-                    onClick={() => setShowQR(!showQR)}
-                    variant="outline"
-                    className="flex-1 h-12"
-                  >
-                    <QrCode className="w-4 h-4 mr-2" />
-                    {showQR ? 'Hide QR Code' : 'Show QR Code'}
-                  </Button>
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div className="space-y-4">
+                    <Button
+                      onClick={() => setShowQR(!showQR)}
+                      variant="outline"
+                      className="h-12 w-full"
+                    >
+                      <QrCode className="w-4 h-4 mr-2" />
+                      {showQR ? 'Hide QR Code' : 'Show QR Code'}
+                    </Button>
+                    
+                    {showQR && (
+                      <div className="flex justify-center">
+                        <QRCodeDisplay url={shortenedUrl.shortUrl} />
+                      </div>
+                    )}
+                  </div>
                   
                   <AnalyticsCard
                     shortCode={shortenedUrl.shortCode}
@@ -292,11 +300,11 @@ export default function HomePage() {
                   />
                 </div>
                 
-                {showQR && (
-                  <div className="flex justify-center">
-                    <QRCodeDisplay value={shortenedUrl.shortUrl} />
-                  </div>
-                )}
+                <div className="text-center pt-4 border-t">
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    <a href="/login" className="text-blue-600 hover:text-blue-700 font-medium">Login</a> or <a href="/signup" className="text-blue-600 hover:text-blue-700 font-medium">Sign up</a> to keep track of your URLs
+                  </p>
+                </div>
               </div>
             </div>
           </Card>

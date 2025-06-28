@@ -1,35 +1,48 @@
-
 'use client'
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Eye, EyeOff, Mail, Lock, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
 
-export const Login = () => {
+export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  const { login, isAuthenticated, isLoading } = useAuth();
+  const router = useRouter();
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      router.push('/dashboard');
+    }
+  }, [isAuthenticated, router]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
     
-    // Simulate login process
-    setTimeout(() => {
+    const success = await login(email, password);
+    
+    if (success) {
       toast({
         title: "Login Successful",
         description: "Welcome back to ToLink!",
       });
-      setIsLoading(false);
-      // Redirect to dashboard would happen here
-      window.location.href = '/dashboard';
-    }, 1500);
+      router.push('/dashboard');
+    } else {
+      toast({
+        title: "Login Failed",
+        description: "Invalid email or password. Try demo@example.com / password",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleGoogleLogin = () => {
@@ -38,6 +51,17 @@ export const Login = () => {
       description: "Google OAuth integration would happen here",
     });
   };
+
+  if (isLoading || isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex items-center justify-center p-4">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600 dark:text-gray-300">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex items-center justify-center p-4">
@@ -142,6 +166,12 @@ export const Login = () => {
             </Button>
           </div>
 
+          <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+            <p className="text-xs text-blue-600 dark:text-blue-400 text-center">
+              <strong>Demo Login:</strong> Use email "demo@example.com" and password "password"
+            </p>
+          </div>
+
           <p className="text-center mt-6 text-sm text-gray-600 dark:text-gray-300">
             Don't have an account?{' '}
             <Link href="/signup" className="text-blue-600 hover:text-blue-800 font-medium">
@@ -152,6 +182,4 @@ export const Login = () => {
       </div>
     </div>
   );
-};
-
-export default Login;
+}

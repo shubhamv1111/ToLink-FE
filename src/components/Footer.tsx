@@ -1,6 +1,6 @@
-
 import React from 'react';
 import { Link2, Twitter, Github, Linkedin } from 'lucide-react';
+import Link from 'next/link';
 
 export const Footer = () => {
   return (
@@ -19,15 +19,15 @@ export const Footer = () => {
               The fastest and most reliable URL shortener. Create short links, track clicks, and boost your online presence.
             </p>
             <div className="flex gap-4">
-              <a href="#" className="text-gray-400 hover:text-white transition-colors">
+              <Link href="/coming-soon" className="text-gray-400 hover:text-white transition-colors">
                 <Twitter className="w-5 h-5" />
-              </a>
-              <a href="#" className="text-gray-400 hover:text-white transition-colors">
+              </Link>
+              <Link href="/coming-soon" className="text-gray-400 hover:text-white transition-colors">
                 <Github className="w-5 h-5" />
-              </a>
-              <a href="#" className="text-gray-400 hover:text-white transition-colors">
+              </Link>
+              <Link href="/coming-soon" className="text-gray-400 hover:text-white transition-colors">
                 <Linkedin className="w-5 h-5" />
-              </a>
+              </Link>
             </div>
           </div>
 
@@ -35,10 +35,10 @@ export const Footer = () => {
           <div>
             <h3 className="font-semibold mb-4">Product</h3>
             <div className="space-y-2">
-              <a href="/" className="block text-gray-400 hover:text-white transition-colors">Home</a>
-              <a href="/dashboard" className="block text-gray-400 hover:text-white transition-colors">Dashboard</a>
-              <a href="/analytics" className="block text-gray-400 hover:text-white transition-colors">Analytics</a>
-              <a href="#" className="block text-gray-400 hover:text-white transition-colors">API</a>
+              <Link href="/" className="block text-gray-400 hover:text-white transition-colors">Home</Link>
+              <Link href="/dashboard" className="block text-gray-400 hover:text-white transition-colors">Dashboard</Link>
+              <Link href="/analytics" className="block text-gray-400 hover:text-white transition-colors">Analytics</Link>
+              <Link href="/coming-soon" className="block text-gray-400 hover:text-white transition-colors">API</Link>
             </div>
           </div>
 
@@ -46,10 +46,10 @@ export const Footer = () => {
           <div>
             <h3 className="font-semibold mb-4">Company</h3>
             <div className="space-y-2">
-              <a href="/about" className="block text-gray-400 hover:text-white transition-colors">About</a>
-              <a href="/contact" className="block text-gray-400 hover:text-white transition-colors">Contact</a>
-              <a href="#" className="block text-gray-400 hover:text-white transition-colors">Blog</a>
-              <a href="#" className="block text-gray-400 hover:text-white transition-colors">Careers</a>
+              <Link href="/about" className="block text-gray-400 hover:text-white transition-colors">About</Link>
+              <Link href="/contact" className="block text-gray-400 hover:text-white transition-colors">Contact</Link>
+              <Link href="/coming-soon" className="block text-gray-400 hover:text-white transition-colors">Blog</Link>
+              <Link href="/coming-soon" className="block text-gray-400 hover:text-white transition-colors">Careers</Link>
             </div>
           </div>
 
@@ -57,16 +57,16 @@ export const Footer = () => {
           <div>
             <h3 className="font-semibold mb-4">Support</h3>
             <div className="space-y-2">
-              <a href="#" className="block text-gray-400 hover:text-white transition-colors">Help Center</a>
-              <a href="#" className="block text-gray-400 hover:text-white transition-colors">Terms</a>
-              <a href="#" className="block text-gray-400 hover:text-white transition-colors">Privacy</a>
-              <a href="#" className="block text-gray-400 hover:text-white transition-colors">Status</a>
+              <Link href="/coming-soon" className="block text-gray-400 hover:text-white transition-colors">Help Center</Link>
+              <Link href="/coming-soon" className="block text-gray-400 hover:text-white transition-colors">Terms</Link>
+              <Link href="/coming-soon" className="block text-gray-400 hover:text-white transition-colors">Privacy</Link>
+              <Link href="/coming-soon" className="block text-gray-400 hover:text-white transition-colors">Status</Link>
             </div>
           </div>
         </div>
 
         <div className="border-t border-gray-800 pt-8 mt-8 text-center text-gray-400">
-          <p>&copy; 2024 ToLink. All rights reserved.</p>
+          <p>&copy; 2025 ToLink. All rights reserved.</p>
         </div>
       </div>
     </footer>
