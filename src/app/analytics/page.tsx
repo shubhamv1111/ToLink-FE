@@ -10,6 +10,7 @@ import { Footer } from '@/components/Footer';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from 'recharts';
 import { useAuth } from '@/contexts/AuthContext';
 import Link from 'next/link';
+import { generateShortUrl } from '@/lib/utils';
 
 interface UrlData {
   id: string;
@@ -34,7 +35,7 @@ const Analytics = () => {
       id: '1',
       originalUrl: 'https://example.com/very-long-url-that-needs-shortening',
       shortCode: 'abc123',
-      shortUrl: 'https://tolink.co/abc123',
+      shortUrl: generateShortUrl('abc123'),
       clicks: 1247,
       createdAt: '2024-01-15T10:30:00Z',
       lastClicked: '2024-01-20T14:22:00Z',
@@ -45,7 +46,7 @@ const Analytics = () => {
       id: '2',
       originalUrl: 'https://github.com/username/repository-name',
       shortCode: 'github1',
-      shortUrl: 'https://tolink.co/github1',
+      shortUrl: generateShortUrl('github1'),
       clicks: 89,
       createdAt: '2024-01-10T09:15:00Z',
       lastClicked: '2024-01-19T16:45:00Z',
@@ -56,7 +57,7 @@ const Analytics = () => {
       id: '3',
       originalUrl: 'https://docs.google.com/document/d/1234567890/edit',
       shortCode: 'docs42',
-      shortUrl: 'https://tolink.co/docs42',
+      shortUrl: generateShortUrl('docs42'),
       clicks: 432,
       createdAt: '2024-01-08T14:20:00Z',
       lastClicked: '2024-01-18T11:30:00Z',

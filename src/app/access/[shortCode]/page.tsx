@@ -1,4 +1,3 @@
-
 'use client'
 
 import React, { useState } from 'react';
@@ -9,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
+import { getBaseUrl } from '@/lib/utils';
 
 export default function PasswordProtected() {
   const { shortCode } = useParams();
@@ -55,7 +55,7 @@ export default function PasswordProtected() {
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Password Required</h1>
           <p className="text-gray-600 dark:text-gray-300">This link is password protected</p>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
-            Link: tolink.co/{shortCode}
+            Link: {getBaseUrl()}/{shortCode}
           </p>
         </div>
 
