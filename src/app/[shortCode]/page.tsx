@@ -39,32 +39,38 @@ export default function ShortCodeRedirect() {
         // Simulate API delay
         await new Promise(resolve => setTimeout(resolve, 1000));
         
-        // Mock data - in real app, this would be an API call
-        const mockUrls = [
-          {
-            shortCode: 'fr7b2t',
-            originalUrl: 'https://example.com/very-long-url-that-needs-shortening',
-            isPrivate: false,
-            hasPassword: false,
-            urlName: 'Example Link'
-          },
-          {
-            shortCode: 'abc123',
-            originalUrl: 'https://github.com/username/repository',
-            isPrivate: false,
-            hasPassword: false,
-            urlName: 'GitHub Repository'
-          },
-          {
-            shortCode: 'docs42',
-            originalUrl: 'https://docs.google.com/document/d/1234567890/edit',
-            isPrivate: false,
-            hasPassword: true,
-            urlName: 'Protected Document'
-          }
-        ];
+        // Check localStorage first for URLs created from homepage
+        const storedUrls = JSON.parse(localStorage.getItem('shortenedUrls') || '[]');
+        let foundUrl = storedUrls.find((url: any) => url.shortCode === shortCode);
+        
+        // If not found in localStorage, check mock data
+        if (!foundUrl) {
+          const mockUrls = [
+            {
+              shortCode: 'fr7b2t',
+              originalUrl: 'https://example.com/very-long-url-that-needs-shortening',
+              isPrivate: false,
+              hasPassword: false,
+              urlName: 'Example Link'
+            },
+            {
+              shortCode: 'abc123',
+              originalUrl: 'https://github.com/username/repository',
+              isPrivate: false,
+              hasPassword: false,
+              urlName: 'GitHub Repository'
+            },
+            {
+              shortCode: 'docs42',
+              originalUrl: 'https://docs.google.com/document/d/1234567890/edit',
+              isPrivate: false,
+              hasPassword: true,
+              urlName: 'Protected Document'
+            }
+          ];
 
-        const foundUrl = mockUrls.find(url => url.shortCode === shortCode);
+          foundUrl = mockUrls.find(url => url.shortCode === shortCode);
+        }
         
         if (!foundUrl) {
           setError('Link not found');
