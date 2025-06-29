@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react';
-import { Copy, Link2, QrCode, BarChart3, Zap, Shield, Globe, CheckCircle } from 'lucide-react';
+import { Copy, Link2, QrCode, BarChart3, Zap, Shield, Globe, CheckCircle, Edit2, Check, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
@@ -20,6 +20,8 @@ interface ShortenedUrl {
   urlName?: string;
   createdAt: string;
   clickCount: number;
+  isPrivate: boolean;
+  hasPassword: boolean;
 }
 
 export default function HomePage() {
@@ -28,8 +30,11 @@ export default function HomePage() {
   const [urlName, setUrlName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [shortenedUrl, setShortenedUrl] = useState<ShortenedUrl | null>(null);
-  const [showQR, setShowQR] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editUrl, setEditUrl] = useState('');
+  const [editUrlName, setEditUrlName] = useState('');
+  const [editCustomAlias, setEditCustomAlias] = useState('');
   const { toast } = useToast();
 
   const isValidUrl = (string: string) => {
@@ -75,8 +80,15 @@ export default function HomePage() {
         customAlias: customAlias || undefined,
         urlName: urlName || undefined,
         createdAt: new Date().toISOString(),
-        clickCount: 0
+        clickCount: 0,
+        isPrivate: false,
+        hasPassword: false
       };
+      
+      // Store in localStorage for access from shortCode page
+      const existingUrls = JSON.parse(localStorage.getItem('shortenedUrls') || '[]');
+      existingUrls.push(newShortenedUrl);
+      localStorage.setItem('shortenedUrls', JSON.stringify(existingUrls));
       
       setShortenedUrl(newShortenedUrl);
       
@@ -120,8 +132,63 @@ export default function HomePage() {
     setCustomAlias('');
     setUrlName('');
     setShortenedUrl(null);
-    setShowQR(false);
     setCopied(false);
+    setIsEditing(false);
+    setEditUrl('');
+    setEditUrlName('');
+    setEditCustomAlias('');
+  };
+
+  const startEdit = () => {
+    if (shortenedUrl) {
+      setEditUrl(shortenedUrl.originalUrl);
+      setEditUrlName(shortenedUrl.urlName || '');
+      setEditCustomAlias(shortenedUrl.customAlias || '');
+      setIsEditing(true);
+    }
+  };
+
+  const cancelEdit = () => {
+    setIsEditing(false);
+    setEditUrl('');
+    setEditUrlName('');
+    setEditCustomAlias('');
+  };
+
+  const saveEdit = () => {
+    if (!editUrl || !shortenedUrl) return;
+
+    if (!isValidUrl(editUrl)) {
+      toast({
+        title: "Invalid URL",
+        description: "Please enter a valid URL starting with http:// or https://",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Update the current shortened URL
+    const updatedUrl = {
+      ...shortenedUrl,
+      originalUrl: editUrl,
+      urlName: editUrlName || undefined,
+      customAlias: editCustomAlias || undefined
+    };
+
+    // Update in localStorage
+    const existingUrls = JSON.parse(localStorage.getItem('shortenedUrls') || '[]');
+    const updatedUrls = existingUrls.map((url: any) => 
+      url.shortCode === shortenedUrl.shortCode ? updatedUrl : url
+    );
+    localStorage.setItem('shortenedUrls', JSON.stringify(updatedUrls));
+
+    setShortenedUrl(updatedUrl);
+    setIsEditing(false);
+    
+    toast({
+      title: "Updated!",
+      description: "URL details updated successfully",
+    });
   };
 
   return (
@@ -146,7 +213,7 @@ export default function HomePage() {
         {/* URL Shortening Form */}
         <Card className="max-w-4xl mx-auto p-8 backdrop-blur-sm bg-white/80 dark:bg-gray-800/80 shadow-xl border-0 mb-12">
           <div className="space-y-6">
-            <div className="grid md:grid-cols-2 gap-4">
+            <div className="space-y-4">
               <div className="space-y-2">
                 <label htmlFor="url" className="text-sm font-medium text-gray-700 dark:text-gray-300">
                   Enter your long URL *
@@ -160,33 +227,35 @@ export default function HomePage() {
                   className="h-12"
                 />
               </div>
-              <div className="space-y-2">
-                <label htmlFor="name" className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Name (optional)
-                </label>
-                <Input
-                  id="name"
-                  type="text"
-                  placeholder="My Important Link"
-                  value={urlName}
-                  onChange={(e) => setUrlName(e.target.value)}
-                  className="h-12"
-                />
+              
+              <div className="grid md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label htmlFor="name" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Name (optional)
+                  </label>
+                  <Input
+                    id="name"
+                    type="text"
+                    placeholder="My Important Link"
+                    value={urlName}
+                    onChange={(e) => setUrlName(e.target.value)}
+                    className="h-12"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label htmlFor="alias" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Custom alias (optional)
+                  </label>
+                  <Input
+                    id="alias"
+                    type="text"
+                    placeholder="my-custom-link"
+                    value={customAlias}
+                    onChange={(e) => setCustomAlias(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
+                    className="h-12"
+                  />
+                </div>
               </div>
-            </div>
-            
-            <div className="space-y-2">
-              <label htmlFor="alias" className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                Custom alias (optional)
-              </label>
-              <Input
-                id="alias"
-                type="text"
-                placeholder="my-custom-link"
-                value={customAlias}
-                onChange={(e) => setCustomAlias(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
-                className="h-12"
-              />
             </div>
             
             <div className="flex flex-col sm:flex-row gap-4">
@@ -251,55 +320,102 @@ export default function HomePage() {
                   </div>
                 </div>
                 
-                <div className="grid md:grid-cols-2 gap-4">
+                <div className="space-y-4">
                   <div>
                     <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
                       Original URL
                     </label>
-                    <Input
-                      value={shortenedUrl.originalUrl}
-                      readOnly
-                      className="mt-1 h-12 bg-gray-50 dark:bg-gray-900"
-                    />
-                  </div>
-                  
-                  {shortenedUrl.urlName && (
-                    <div>
-                      <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                        Name
-                      </label>
-                      <Input
-                        value={shortenedUrl.urlName}
-                        readOnly
-                        className="mt-1 h-12 bg-gray-50 dark:bg-gray-900"
-                      />
-                    </div>
-                  )}
-                </div>
-                
-                <div className="grid md:grid-cols-2 gap-4">
-                  <div className="space-y-4">
-                    <Button
-                      onClick={() => setShowQR(!showQR)}
-                      variant="outline"
-                      className="h-12 w-full"
-                    >
-                      <QrCode className="w-4 h-4 mr-2" />
-                      {showQR ? 'Hide QR Code' : 'Show QR Code'}
-                    </Button>
-                    
-                    {showQR && (
-                      <div className="flex justify-center">
-                        <QRCodeDisplay url={shortenedUrl.shortUrl} />
+                    {isEditing ? (
+                      <div className="flex gap-2 mt-1">
+                        <Input
+                          value={editUrl}
+                          onChange={(e) => setEditUrl(e.target.value)}
+                          placeholder="https://example.com"
+                          className="h-12"
+                        />
+                        <Button onClick={saveEdit} variant="outline" className="h-12 px-4">
+                          <Check className="w-4 h-4" />
+                        </Button>
+                        <Button onClick={cancelEdit} variant="outline" className="h-12 px-4">
+                          <X className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="flex gap-2 mt-1">
+                        <Input
+                          value={shortenedUrl.originalUrl}
+                          readOnly
+                          className="h-12 bg-gray-50 dark:bg-gray-900"
+                          style={{ 
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden'
+                          }}
+                          title={shortenedUrl.originalUrl}
+                        />
+                        <Button
+                          onClick={startEdit}
+                          variant="outline"
+                          className="h-12 px-4"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </Button>
                       </div>
                     )}
                   </div>
                   
-                  <AnalyticsCard
-                    shortCode={shortenedUrl.shortCode}
-                    clickCount={shortenedUrl.clickCount}
-                    createdAt={shortenedUrl.createdAt}
-                  />
+                  {isEditing ? (
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                          Name
+                        </label>
+                        <Input
+                          value={editUrlName}
+                          onChange={(e) => setEditUrlName(e.target.value)}
+                          placeholder="My Important Link"
+                          className="mt-1 h-12"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                          Custom Alias
+                        </label>
+                        <Input
+                          value={editCustomAlias}
+                          onChange={(e) => setEditCustomAlias(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
+                          placeholder="my-custom-link"
+                          className="mt-1 h-12"
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    shortenedUrl.urlName && (
+                      <div>
+                        <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                          Name
+                        </label>
+                        <Input
+                          value={shortenedUrl.urlName}
+                          readOnly
+                          className="mt-1 h-12 bg-gray-50 dark:bg-gray-900"
+                        />
+                      </div>
+                    )
+                  )}
+                </div>
+                
+                <div className="grid md:grid-cols-2 gap-6 w-full min-h-[380px]">
+                  <div className="h-full w-full flex">
+                    <QRCodeDisplay url={shortenedUrl.shortUrl} />
+                  </div>
+                  <div className="h-full w-full flex">
+                    <AnalyticsCard
+                      shortCode={shortenedUrl.shortCode}
+                      clickCount={shortenedUrl.clickCount}
+                      createdAt={shortenedUrl.createdAt}
+                    />
+                  </div>
                 </div>
                 
                 <div className="text-center pt-4 border-t">
