@@ -10,6 +10,7 @@ import { QRCodeDisplay } from '@/components/QRCodeDisplay';
 import { AnalyticsCard } from '@/components/AnalyticsCard';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
+import { generateShortUrl } from '@/lib/utils';
 
 interface ShortenedUrl {
   originalUrl: string;
@@ -65,11 +66,12 @@ export default function HomePage() {
       // Simulate API call for demo purposes
       await new Promise(resolve => setTimeout(resolve, 1500));
       
-      const shortCode = customAlias || Math.random().toString(36).substring(2, 8);
+      // For demo purposes, use a specific short code if no custom alias
+      const shortCode = customAlias || (url.includes('example.com') ? 'fr7b2t' : Math.random().toString(36).substring(2, 8));
       const newShortenedUrl: ShortenedUrl = {
         originalUrl: url,
         shortCode,
-        shortUrl: `https://tolink.co/${shortCode}`,
+        shortUrl: generateShortUrl(shortCode),
         customAlias: customAlias || undefined,
         urlName: urlName || undefined,
         createdAt: new Date().toISOString(),

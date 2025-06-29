@@ -13,6 +13,7 @@ import { UrlCard } from '@/components/dashboard/UrlCard';
 import { CreateLinkModal } from '@/components/dashboard/CreateLinkModal';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
+import { generateShortUrl } from '@/lib/utils';
 
 interface UrlData {
   id: string;
@@ -41,8 +42,8 @@ const Dashboard = () => {
     {
       id: '1',
       originalUrl: 'https://example.com/very-long-url-that-needs-shortening',
-      shortCode: 'abc123',
-      shortUrl: 'https://tolink.co/abc123',
+      shortCode: 'fr7b2t',
+      shortUrl: generateShortUrl('fr7b2t'),
       clicks: 1247,
       createdAt: '2024-01-15T10:30:00Z',
       lastClicked: '2024-01-20T14:22:00Z',
@@ -54,7 +55,7 @@ const Dashboard = () => {
       id: '2',
       originalUrl: 'https://github.com/username/repository-name',
       shortCode: 'github1',
-      shortUrl: 'https://tolink.co/github1',
+      shortUrl: generateShortUrl('github1'),
       clicks: 89,
       createdAt: '2024-01-10T09:15:00Z',
       lastClicked: '2024-01-19T16:45:00Z',
@@ -66,7 +67,7 @@ const Dashboard = () => {
       id: '3',
       originalUrl: 'https://docs.google.com/document/d/1234567890/edit',
       shortCode: 'docs42',
-      shortUrl: 'https://tolink.co/docs42',
+      shortUrl: generateShortUrl('docs42'),
       clicks: 432,
       createdAt: '2024-01-08T14:20:00Z',
       lastClicked: '2024-01-18T11:30:00Z',
@@ -142,11 +143,12 @@ const Dashboard = () => {
   };
 
   const createLink = async (linkData: any) => {
+    const shortCode = linkData.customAlias || Math.random().toString(36).substring(2, 8);
     const newUrl: UrlData = {
       id: Date.now().toString(),
       originalUrl: linkData.originalUrl,
-      shortCode: linkData.customAlias || Math.random().toString(36).substring(2, 8),
-      shortUrl: `https://tolink.co/${linkData.customAlias || Math.random().toString(36).substring(2, 8)}`,
+      shortCode: shortCode,
+      shortUrl: generateShortUrl(shortCode),
       clicks: 0,
       createdAt: new Date().toISOString(),
       isPrivate: linkData.isPrivate,
