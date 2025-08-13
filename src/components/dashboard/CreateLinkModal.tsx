@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Plus, Link2, Lock, Shield } from 'lucide-react';
+import { Link2, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface CreateLinkModalProps {
   isOpen: boolean;
@@ -31,17 +32,24 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
   const [password, setPassword] = useState(initialValues?.password || '');
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  const { isAuthenticated } = useAuth();
 
   useEffect(() => {
-    if (isOpen && initialValues) {
+    if (!isOpen) return;
+    if (initialValues) {
       setUrl(initialValues.originalUrl || '');
       setCustomAlias(initialValues.customAlias || '');
       setUrlName(initialValues.urlName || '');
       setIsPrivate(initialValues.isPrivate || false);
       setHasPassword(initialValues.hasPassword || false);
       setPassword(initialValues.password || '');
+    } else {
+      // For new links: auto-set privacy based on auth
+      setIsPrivate(!!isAuthenticated);
+      setHasPassword(false);
+      setPassword('');
     }
-  }, [isOpen, initialValues]);
+  }, [isOpen, initialValues, isAuthenticated]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -60,6 +68,7 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
         urlName,
         originalUrl: url,
         customAlias,
+        // Auto-assign privacy: if logged in -> private, else public
         isPrivate,
         hasPassword,
         password: hasPassword ? password : undefined
@@ -133,17 +142,6 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
           </div>
 
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Lock className="w-4 h-4 text-gray-600" />
-                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Private Link</span>
-              </div>
-              <Switch
-                checked={isPrivate}
-                onCheckedChange={setIsPrivate}
-              />
-            </div>
-
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Shield className="w-4 h-4 text-gray-600" />

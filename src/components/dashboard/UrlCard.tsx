@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Calendar, Eye, ExternalLink, Copy, Trash2, BarChart3, Lock, Globe, Shield, QrCode, Download, Edit, Check } from 'lucide-react';
+import { Calendar, Eye, ExternalLink, Copy, Trash2, BarChart3, Shield, QrCode, Download, Edit, Check } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -150,22 +150,13 @@ export const UrlCard: React.FC<UrlCardProps> = ({ url, onCopy, onDelete, onEdit 
             >
               <Copy className="w-3 h-3" />
             </Button>
-            <div className="flex gap-1">
-              {url.isPrivate ? (
-                <div title="Private Link - Only visible to you">
-                  <Lock className="w-4 h-4 text-orange-500" />
-                </div>
-              ) : (
-                <div title="Public Link - Visible to everyone">
-                  <Globe className="w-4 h-4 text-green-500" />
-                </div>
-              )}
-              {url.hasPassword && (
+            {url.hasPassword && (
+              <div className="flex gap-1">
                 <div title="Password Protected">
                   <Shield className="w-4 h-4 text-red-500" />
                 </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
           {/* Password Show Button with label (top right) */}
           {url.hasPassword && (

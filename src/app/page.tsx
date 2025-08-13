@@ -11,6 +11,7 @@ import { AnalyticsCard } from '@/components/AnalyticsCard';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { generateShortUrl } from '@/lib/utils';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface ShortenedUrl {
   originalUrl: string;
@@ -36,6 +37,7 @@ export default function HomePage() {
   const [editUrlName, setEditUrlName] = useState('');
   const [editCustomAlias, setEditCustomAlias] = useState('');
   const { toast } = useToast();
+  const { isAuthenticated } = useAuth();
 
   const isValidUrl = (string: string) => {
     try {
@@ -81,7 +83,7 @@ export default function HomePage() {
         urlName: urlName || undefined,
         createdAt: new Date().toISOString(),
         clickCount: 0,
-        isPrivate: false,
+        isPrivate: !!isAuthenticated,
         hasPassword: false
       };
       
@@ -211,7 +213,7 @@ export default function HomePage() {
         </div>
 
         {/* URL Shortening Form */}
-        <Card className="max-w-4xl mx-auto p-8 backdrop-blur-sm bg-white/80 dark:bg-gray-800/80 shadow-xl border-0 mb-12">
+         <Card className="max-w-4xl mx-auto p-8 backdrop-blur-sm bg-white/80 dark:bg-gray-800/80 shadow-xl border-0 mb-12">
           <div className="space-y-6">
             <div className="space-y-4">
               <div className="space-y-2">
@@ -282,6 +284,12 @@ export default function HomePage() {
                   Create Another
                 </Button>
               )}
+            </div>
+
+            <div className="pt-2">
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Public links will be deleted 1 month after creation. To save your link from deletion, please log in.
+              </p>
             </div>
           </div>
         </Card>
