@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell, ReferenceDot } from 'recharts';
 import { useAuth } from '@/contexts/AuthContext';
 import Link from 'next/link';
 import { generateShortUrl } from '@/lib/utils';
@@ -20,6 +20,8 @@ interface UrlData {
   clicks: number;
   createdAt: string;
   lastClicked?: string;
+  expiredAt?: string;
+  statusPeriods?: { start: string; end?: string }[];
   isPrivate: boolean;
   hasPassword: boolean;
 }
@@ -39,6 +41,9 @@ const Analytics = () => {
       clicks: 1247,
       createdAt: '2024-01-15T10:30:00Z',
       lastClicked: '2024-01-20T14:22:00Z',
+      statusPeriods: [
+        { start: '2024-01-15' }
+      ],
       isPrivate: false,
       hasPassword: false
     },
@@ -49,7 +54,12 @@ const Analytics = () => {
       shortUrl: generateShortUrl('github1'),
       clicks: 89,
       createdAt: '2024-01-10T09:15:00Z',
+      expiredAt: '2024-01-19T16:45:00Z',
       lastClicked: '2024-01-19T16:45:00Z',
+      statusPeriods: [
+        { start: '2024-01-10', end: '2024-01-13' },
+        { start: '2024-01-16', end: '2024-01-19' }
+      ],
       isPrivate: true,
       hasPassword: false
     },
@@ -61,47 +71,142 @@ const Analytics = () => {
       clicks: 432,
       createdAt: '2024-01-08T14:20:00Z',
       lastClicked: '2024-01-18T11:30:00Z',
+      statusPeriods: [
+        { start: '2024-01-08', end: '2024-01-12' },
+        { start: '2024-01-14' }
+      ],
       isPrivate: false,
       hasPassword: true
     }
   ]);
 
   // Mock data - this would come from API based on selected URL
+  // Helper to generate demo clicks data for the selected period
   const getAnalyticsData = () => {
+    const isAllTime = selectedPeriod === 'allTime';
+    const days = selectedPeriod === '7days' ? 7 : selectedPeriod === '30days' ? 30 : selectedPeriod === '90days' ? 90 : undefined;
+
+    const generateClicksData = (numDays: number, baseClicks: number) => {
+      const today = new Date();
+      const data: { date: string; clicks: number }[] = [];
+      for (let i = numDays - 1; i >= 0; i--) {
+        const d = new Date(today);
+        d.setDate(today.getDate() - i);
+        // Smooth variation so chart looks realistic and readable
+        const seasonal = Math.sin(((numDays - i) / numDays) * Math.PI * 2) * 12;
+        const weekly = ((numDays - i) % 7) * 2;
+        const clicks = Math.max(5, Math.round(baseClicks + seasonal + weekly));
+        data.push({ date: d.toISOString().slice(0, 10), clicks });
+      }
+      return data;
+    };
+
     if (selectedUrl === 'all') {
-      // Combined data for all user URLs
+      // Combine all URLs into a continuous series
+      const today = new Date();
+      const windowEnd = today;
+      let windowStart: Date;
+      if (isAllTime) {
+        windowStart = new Date(Math.min(...userUrls.map(u => new Date(u.createdAt).getTime())));
+      } else {
+        windowStart = new Date();
+        windowStart.setDate(today.getDate() - (days as number) + 1);
+      }
+
+      const diffDays = Math.max(1, Math.ceil((windowEnd.getTime() - windowStart.getTime()) / (1000 * 60 * 60 * 24)) + 1);
+      const clicksData: { date: string; clicks: number }[] = [];
+
+      for (let i = 0; i < diffDays; i++) {
+        const d = new Date(windowStart);
+        d.setDate(windowStart.getDate() + i);
+        const dayStr = d.toISOString().slice(0, 10);
+
+        // Sum contributions from each URL depending on its active state that day
+        let dayClicks = 0;
+        userUrls.forEach(u => {
+          const periods = (u.statusPeriods && u.statusPeriods.length > 0) ? u.statusPeriods : [{ start: u.createdAt, end: u.expiredAt }];
+          const isActive = periods.some(p => {
+            const s = new Date(p.start + 'T00:00:00Z');
+            const e = p.end ? new Date(p.end + 'T23:59:59Z') : undefined;
+            const afterStart = d.getTime() >= s.getTime();
+            const beforeEnd = e ? d.getTime() <= e.getTime() : true;
+            return afterStart && beforeEnd;
+          });
+          const seasonal = Math.sin(((i + 1) / diffDays) * Math.PI * 2) * 6;
+          const weekly = ((i + 1) % 7) * 1.2;
+          const baseActive = 14;
+          const baseInactive = 4;
+          dayClicks += Math.max(0, Math.round((isActive ? baseActive : baseInactive) + seasonal + weekly));
+        });
+
+        clicksData.push({ date: dayStr, clicks: dayClicks });
+      }
+
+      const totalClicks = clicksData.reduce((sum, d) => sum + d.clicks, 0);
       return {
-        clicksData: [
-          { date: '2024-01-14', clicks: 45 },
-          { date: '2024-01-15', clicks: 52 },
-          { date: '2024-01-16', clicks: 38 },
-          { date: '2024-01-17', clicks: 67 },
-          { date: '2024-01-18', clicks: 71 },
-          { date: '2024-01-19', clicks: 59 },
-          { date: '2024-01-20', clicks: 83 }
-        ],
-        totalClicks: 2847,
-        uniqueVisitors: 1234,
-        clickRate: '3.2%',
-        avgDailyClicks: 407
+        clicksData,
+        totalClicks,
+        uniqueVisitors: Math.round(totalClicks * 0.7),
+        clickRate: '3.0%',
+        avgDailyClicks: Math.round(totalClicks / diffDays)
       };
     } else {
-      // Data for specific URL
       const url = userUrls.find(u => u.id === selectedUrl);
+      if (!url) {
+        return { clicksData: [], totalClicks: 0, uniqueVisitors: 0, clickRate: '0%', avgDailyClicks: 0 };
+      }
+
+      const periods = (url.statusPeriods && url.statusPeriods.length > 0)
+        ? url.statusPeriods
+        : [{ start: url.createdAt, end: url.expiredAt }];
+
+      const windowEnd = new Date();
+      const tentativeStart = isAllTime ? new Date(url.createdAt) : (() => { const d = new Date(); d.setDate(d.getDate() - (days as number) + 1); return d; })();
+      const windowStart = new Date(Math.max(tentativeStart.getTime(), new Date(url.createdAt).getTime()));
+
+      const diffDays = Math.max(1, Math.ceil((windowEnd.getTime() - windowStart.getTime()) / (1000 * 60 * 60 * 24)) + 1);
+
+      const data: { date: string; clicks: number; activeClicks: number | null; inactiveClicks: number | null; isExpired?: boolean }[] = [];
+      const expiredDateStr = url.expiredAt ? new Date(url.expiredAt).toISOString().slice(0, 10) : undefined;
+
+      for (let i = 0; i < diffDays; i++) {
+        const d = new Date(windowStart);
+        d.setDate(windowStart.getDate() + i);
+        const dayStr = d.toISOString().slice(0, 10);
+
+        // determine active on this day based on periods
+        const isActive = periods.some(p => {
+          const s = new Date(p.start + 'T00:00:00Z');
+          const e = p.end ? new Date(p.end + 'T23:59:59Z') : undefined;
+          const afterStart = d.getTime() >= s.getTime();
+          const beforeEnd = e ? d.getTime() <= e.getTime() : true;
+          return afterStart && beforeEnd;
+        });
+
+        const seasonal = Math.sin(((i + 1) / diffDays) * Math.PI * 2) * 10;
+        const weekly = ((i + 1) % 7) * 1.5;
+        const baseActive = 28;
+        const baseInactive = 7;
+        const clicks = Math.max(1, Math.round((isActive ? baseActive : baseInactive) + seasonal + weekly));
+
+        data.push({
+          date: dayStr,
+          clicks,
+          activeClicks: isActive ? clicks : null,
+          inactiveClicks: isActive ? null : clicks,
+          isExpired: expiredDateStr ? dayStr === expiredDateStr : false
+        });
+      }
+
+      const totalClicks = data.reduce((sum, d) => sum + d.clicks, 0);
+      const avgDailyClicks = Math.round(totalClicks / diffDays);
       return {
-        clicksData: [
-          { date: '2024-01-14', clicks: 15 },
-          { date: '2024-01-15', clicks: 22 },
-          { date: '2024-01-16', clicks: 18 },
-          { date: '2024-01-17', clicks: 27 },
-          { date: '2024-01-18', clicks: 31 },
-          { date: '2024-01-19', clicks: 29 },
-          { date: '2024-01-20', clicks: 33 }
-        ],
-        totalClicks: url?.clicks || 0,
-        uniqueVisitors: Math.floor((url?.clicks || 0) * 0.8),
-        clickRate: '2.8%',
-        avgDailyClicks: Math.floor((url?.clicks || 0) / 7)
+        clicksData: data,
+        totalClicks,
+        uniqueVisitors: Math.round(totalClicks * 0.75),
+        clickRate: '2.6%',
+        avgDailyClicks,
+        expiredMarker: expiredDateStr
       };
     }
   };
@@ -177,24 +282,22 @@ const Analytics = () => {
             </p>
           </div>
           <div className="flex gap-2 mt-4 md:mt-0">
-            {isAuthenticated && (
-              <div className="flex items-center gap-2 mr-4">
-                <Filter className="w-4 h-4 text-gray-500" />
-                <Select value={selectedUrl} onValueChange={setSelectedUrl}>
-                  <SelectTrigger className="w-48">
-                    <SelectValue placeholder="Select URL" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All URLs</SelectItem>
-                    {userUrls.map((url) => (
-                      <SelectItem key={url.id} value={url.id}>
-                        {url.shortCode} ({url.clicks} clicks)
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
+            <div className="flex items-center gap-2 mr-4">
+              <Filter className="w-4 h-4 text-gray-500" />
+              <Select value={selectedUrl} onValueChange={setSelectedUrl}>
+                <SelectTrigger className="w-48">
+                  <SelectValue placeholder="Select URL" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All URLs</SelectItem>
+                  {userUrls.map((url) => (
+                    <SelectItem key={url.id} value={url.id}>
+                      {url.shortCode} ({url.clicks} clicks)
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             <Button
               variant={selectedPeriod === '7days' ? 'default' : 'outline'}
               size="sm"
@@ -215,6 +318,13 @@ const Analytics = () => {
               onClick={() => setSelectedPeriod('90days')}
             >
               90 Days
+            </Button>
+            <Button
+              variant={selectedPeriod === 'allTime' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setSelectedPeriod('allTime')}
+            >
+              All
             </Button>
           </div>
         </div>
@@ -240,33 +350,61 @@ const Analytics = () => {
           ))}
         </div>
 
+        {/* Clicks Over Time - Full Width */}
+        <Card className="p-6 mb-8 backdrop-blur-sm bg-white/80 dark:bg-gray-800/80 shadow-xl border-0">
+          <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Clicks Over Time</h3>
+          <div className="overflow-x-auto">
+            <div style={{ minWidth: Math.max((analyticsData.clicksData?.length || 0) * 40, 800) }}>
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={analyticsData.clicksData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis 
+                    dataKey="date" 
+                    tickFormatter={(value) => new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                  />
+                  <YAxis />
+                  {selectedUrl === 'all' ? (
+                    <Tooltip labelFormatter={(value) => new Date(value as any).toLocaleDateString()} />
+                  ) : (
+                    <Tooltip 
+                      labelFormatter={(value) => new Date(value as any).toLocaleDateString()}
+                      content={({ active, payload, label }) => {
+                        if (!active || !payload) return null;
+                        const p = payload as any;
+                        const point = (p[0] && p[0].payload) || {};
+                        const isActive = point.activeClicks != null;
+                        const isExpired = point.isExpired;
+                        return (
+                          <div className="rounded-md p-2 text-sm bg-gray-900 text-white shadow-lg">
+                            <div className="font-medium mb-1">{new Date(label as any).toLocaleDateString()}</div>
+                            <div>Clicks: <span className="font-semibold">{point.clicks}</span></div>
+                            <div>Status: <span className="font-semibold" style={{ color: isExpired ? '#EF4444' : (isActive ? '#10B981' : '#3B82F6') }}>
+                              {isExpired ? 'Expired' : (isActive ? 'Active' : 'Inactive')}
+                            </span></div>
+                          </div>
+                        );
+                      }}
+                    />
+                  )}
+                  {selectedUrl === 'all' ? (
+                    <Line type="monotone" dataKey="clicks" stroke="#3B82F6" strokeWidth={3} dot={{ fill: '#3B82F6' }} connectNulls={true} />
+                  ) : (
+                    <>
+                      <Line type="monotone" dataKey="inactiveClicks" stroke="#3B82F6" strokeWidth={3} dot={false} connectNulls={false} />
+                      <Line type="monotone" dataKey="activeClicks" stroke="#10B981" strokeWidth={3} dot={false} connectNulls={false} />
+                      {analyticsData.expiredMarker && (
+                        <ReferenceDot x={analyticsData.expiredMarker} y={(analyticsData.clicksData.find((d: any) => d.date === analyticsData.expiredMarker)?.clicks) || 0} r={5} fill="#EF4444" stroke="none" isFront />
+                      )}
+                    </>
+                  )}
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </Card>
+
         {/* Charts Section */}
         <div className="grid lg:grid-cols-2 gap-8 mb-8">
-          {/* Clicks Over Time */}
-          <Card className="p-6 backdrop-blur-sm bg-white/80 dark:bg-gray-800/80 shadow-xl border-0">
-            <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Clicks Over Time</h3>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={analyticsData.clicksData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis 
-                  dataKey="date" 
-                  tickFormatter={(value) => new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                />
-                <YAxis />
-                <Tooltip 
-                  labelFormatter={(value) => new Date(value).toLocaleDateString()}
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="clicks" 
-                  stroke="#3B82F6" 
-                  strokeWidth={3}
-                  dot={{ fill: '#3B82F6' }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </Card>
-
           {/* Device Breakdown */}
           <Card className="p-6 backdrop-blur-sm bg-white/80 dark:bg-gray-800/80 shadow-xl border-0">
             <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Device Breakdown</h3>
@@ -297,21 +435,25 @@ const Analytics = () => {
               ))}
             </div>
           </Card>
+          
+          {/* Traffic Sources */}
+          <Card className="p-6 backdrop-blur-sm bg-white/80 dark:bg-gray-800/80 shadow-xl border-0">
+            <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Traffic Sources</h3>
+            <div className="overflow-x-auto">
+              <div style={{ minWidth: 800 }}>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={referrerData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="source" />
+                    <YAxis />
+                    <Tooltip />
+                    <Bar dataKey="clicks" fill="#8B5CF6" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </Card>
         </div>
-
-        {/* Traffic Sources */}
-        <Card className="p-6 mb-8 backdrop-blur-sm bg-white/80 dark:bg-gray-800/80 shadow-xl border-0">
-          <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Traffic Sources</h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={referrerData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="source" />
-              <YAxis />
-              <Tooltip />
-              <Bar dataKey="clicks" fill="#8B5CF6" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </Card>
 
         {/* Geographic Data & Top URLs */}
         <div className="grid lg:grid-cols-2 gap-8">
@@ -321,7 +463,7 @@ const Analytics = () => {
               <Globe className="w-5 h-5 text-blue-600 dark:text-blue-400" />
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Top Countries</h3>
             </div>
-            <div className="space-y-4">
+            <div className="space-y-4 max-h-80 overflow-y-auto pr-2">
               {countryData.map((country, index) => (
                 <div key={index} className="flex items-center justify-between">
                   <div className="flex-1">
@@ -349,7 +491,7 @@ const Analytics = () => {
                 {isAuthenticated ? 'Your Top URLs' : 'Top Performing URLs'}
               </h3>
             </div>
-            <div className="space-y-4">
+            <div className="space-y-4 max-h-80 overflow-y-auto pr-2">
               {userUrls.slice(0, 3).map((url, index) => (
                 <div key={index} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
                   <div>
