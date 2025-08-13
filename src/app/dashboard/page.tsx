@@ -29,6 +29,7 @@ interface UrlData {
   password?: string;
   activationAt?: string;
   expiresAt?: string;
+  enabled?: boolean;
 }
 
 const Dashboard = () => {
@@ -51,7 +52,8 @@ const Dashboard = () => {
       lastClicked: '2024-01-20T14:22:00Z',
       isPrivate: false,
       hasPassword: false,
-      urlName: 'My Important Link'
+      urlName: 'My Important Link',
+      enabled: true
     },
     {
       id: '2',
@@ -63,7 +65,8 @@ const Dashboard = () => {
       lastClicked: '2024-01-19T16:45:00Z',
       isPrivate: true,
       hasPassword: false,
-      urlName: 'GitHub Repository'
+      urlName: 'GitHub Repository',
+      enabled: true
     },
     {
       id: '3',
@@ -76,7 +79,8 @@ const Dashboard = () => {
       isPrivate: false,
       hasPassword: true,
       urlName: 'Google Docs Link',
-      password: 'secret123'
+      password: 'secret123',
+      enabled: true
     }
   ]);
 
@@ -105,10 +109,14 @@ const Dashboard = () => {
     );
   }
 
-  const publicUrls = urls.filter(url => !url.isPrivate);
-  const totalClicks = publicUrls.reduce((sum, url) => sum + url.clicks, 0);
+  const isExpired = (u: UrlData) => !!u.expiresAt && new Date() > new Date(u.expiresAt);
+  const isPreActivation = (u: UrlData) => !!u.activationAt && new Date() < new Date(u.activationAt);
+  const isEnabled = (u: UrlData) => u.enabled !== false;
+  const isActive = (u: UrlData) => isEnabled(u) && !isPreActivation(u) && !isExpired(u);
+
+  const totalClicks = urls.reduce((sum, url) => sum + url.clicks, 0);
   const totalUrls = urls.length;
-  const avgClicks = publicUrls.length > 0 ? Math.round(totalClicks / publicUrls.length) : 0;
+  const avgClicks = urls.length > 0 ? Math.round(totalClicks / urls.length) : 0;
 
   const copyToClipboard = async (url: string) => {
     try {
@@ -154,7 +162,27 @@ const Dashboard = () => {
           hasPassword: updatedData.hasPassword ?? stored[foundIndex].hasPassword,
           activationAt: updatedData.activationAt ?? stored[foundIndex].activationAt,
           expiresAt: updatedData.expiresAt ?? stored[foundIndex].expiresAt,
+          enabled: (updatedData.enabled ?? stored[foundIndex].enabled) ?? true,
         };
+      } else {
+        const current = updatedList.find(u => u.id === id);
+        if (current) {
+          const toStore = {
+            originalUrl: current.originalUrl,
+            shortCode: current.shortCode,
+            shortUrl: current.shortUrl,
+            customAlias: current.shortCode,
+            urlName: current.urlName,
+            createdAt: current.createdAt,
+            clickCount: current.clicks,
+            isPrivate: current.isPrivate,
+            hasPassword: current.hasPassword,
+            activationAt: current.activationAt,
+            expiresAt: current.expiresAt,
+            enabled: updatedData.enabled ?? current.enabled ?? true,
+          };
+          stored.push(toStore);
+        }
       }
       localStorage.setItem('shortenedUrls', JSON.stringify(stored));
     } catch {}
@@ -178,7 +206,8 @@ const Dashboard = () => {
       urlName: linkData.urlName,
       password: linkData.password,
       activationAt: linkData.activationAt,
-      expiresAt: linkData.expiresAt
+      expiresAt: linkData.expiresAt,
+      enabled: true
     };
     
     setUrls([newUrl, ...urls]);
@@ -198,7 +227,8 @@ const Dashboard = () => {
         isPrivate: newUrl.isPrivate,
         hasPassword: newUrl.hasPassword,
         activationAt: newUrl.activationAt,
-        expiresAt: newUrl.expiresAt
+        expiresAt: newUrl.expiresAt,
+        enabled: newUrl.enabled
       });
       localStorage.setItem('shortenedUrls', JSON.stringify(without));
     } catch {}
@@ -213,8 +243,8 @@ const Dashboard = () => {
                          url.shortCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          (url.urlName && url.urlName.toLowerCase().includes(searchTerm.toLowerCase()));
     
-    if (selectedFilter === 'public') return matchesSearch && !url.isPrivate;
-    if (selectedFilter === 'private') return matchesSearch && url.isPrivate;
+    if (selectedFilter === 'active') return matchesSearch && isActive(url);
+    if (selectedFilter === 'expired') return matchesSearch && isExpired(url);
     if (selectedFilter === 'password-protected') return matchesSearch && url.hasPassword;
     
     return matchesSearch;

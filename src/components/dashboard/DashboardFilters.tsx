@@ -41,18 +41,18 @@ export const DashboardFilters: React.FC<DashboardFiltersProps> = ({
             All
           </Button>
           <Button
-            variant={selectedFilter === 'public' ? 'default' : 'outline'}
+            variant={selectedFilter === 'active' ? 'default' : 'outline'}
             size="sm"
-            onClick={() => setSelectedFilter('public')}
+            onClick={() => setSelectedFilter('active')}
           >
-            Public
+            Active
           </Button>
           <Button
-            variant={selectedFilter === 'private' ? 'default' : 'outline'}
+            variant={selectedFilter === 'expired' ? 'default' : 'outline'}
             size="sm"
-            onClick={() => setSelectedFilter('private')}
+            onClick={() => setSelectedFilter('expired')}
           >
-            Private
+            Expired
           </Button>
           <Button
             variant={selectedFilter === 'password-protected' ? 'default' : 'outline'}

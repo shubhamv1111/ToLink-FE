@@ -15,6 +15,7 @@ interface ShortUrlData {
   urlName?: string;
   activationAt?: string;
   expiresAt?: string;
+  enabled?: boolean;
 }
 
 export default function ShortCodeRedirect() {
@@ -84,6 +85,12 @@ export default function ShortCodeRedirect() {
 
         // Check activation / expiration and redirect to status pages
         const now = new Date();
+        // If disabled, behave as not activated
+        if (foundUrl.enabled === false) {
+          setIsLoading(false);
+          router.replace(`/not-activated?code=${encodeURIComponent(String(shortCode))}`);
+          return;
+        }
         if (foundUrl.activationAt) {
           const activateAt = new Date(foundUrl.activationAt);
           if (now < activateAt) {

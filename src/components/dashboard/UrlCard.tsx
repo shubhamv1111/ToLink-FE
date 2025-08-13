@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { Calendar, Eye, ExternalLink, Copy, Trash2, BarChart3, Shield, QrCode, Download, Edit, Check } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -23,6 +25,7 @@ interface UrlData {
   password?: string;
   activationAt?: string;
   expiresAt?: string;
+  enabled?: boolean;
 }
 
 interface UrlCardProps {
@@ -37,7 +40,13 @@ export const UrlCard: React.FC<UrlCardProps> = ({ url, onCopy, onDelete, onEdit 
   const [showPassword, setShowPassword] = useState(false);
   const [copiedPassword, setCopiedPassword] = useState(false);
   const [showQR, setShowQR] = useState(false);
+  const [isSwitchChecked, setIsSwitchChecked] = useState<boolean>(url.enabled ?? true);
   const router = useRouter();
+  
+  const [showConfirm, setShowConfirm] = useState<{
+    type: 'pre-activation' | 'expired' | null;
+    message: string;
+  }>({ type: null, message: '' });
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -90,9 +99,96 @@ export const UrlCard: React.FC<UrlCardProps> = ({ url, onCopy, onDelete, onEdit 
     }
   };
 
+  const activationAt = url.activationAt ? new Date(url.activationAt) : undefined;
+  const expiresAt = url.expiresAt ? new Date(url.expiresAt) : undefined;
+
+  const handleToggleRequest = (nextChecked: boolean) => {
+    const now = new Date();
+    // If enabling and before activation time
+    if (nextChecked && activationAt && now < activationAt) {
+      setShowConfirm({
+        type: 'pre-activation',
+        message: `This link is scheduled to activate at ${activationAt.toLocaleString()}. Do you want to reset activation and activate it now?`
+      });
+      return;
+    }
+    // If enabling and link is expired
+    if (nextChecked && expiresAt && now > expiresAt) {
+      setShowConfirm({
+        type: 'expired',
+        message: `This link expired on ${expiresAt.toLocaleString()}. Do you still want to activate it now?`
+      });
+      return;
+    }
+    // Direct toggle allowed
+    setIsSwitchChecked(nextChecked);
+    onEdit(url.id, { enabled: nextChecked });
+  };
+
+  const confirmToggleNow = () => {
+    const nextChecked = true;
+    const updated: any = { enabled: nextChecked };
+    if (showConfirm.type === 'pre-activation') {
+      updated.activationAt = undefined; // reset activation schedule
+    }
+    if (showConfirm.type === 'expired') {
+      updated.expiresAt = undefined; // clear expiration to re-activate
+    }
+    setIsSwitchChecked(nextChecked);
+    onEdit(url.id, updated);
+    setShowConfirm({ type: null, message: '' });
+  };
+  
+  const cancelConfirm = () => setShowConfirm({ type: null, message: '' });
+
   // --- Card Layout ---
   return (
-    <Card className="p-6 backdrop-blur-sm bg-white/80 dark:bg-gray-800/80 shadow-xl border-0 hover:bg-white/90 dark:hover:bg-gray-800/90 transition-all duration-300">
+    <Card className="relative p-6 backdrop-blur-sm bg-white/80 dark:bg-gray-800/80 shadow-xl border-0 hover:bg-white/90 dark:hover:bg-gray-800/90 transition-all duration-300">
+      {/* Top-right controls: Password button (left) + Active switch (right) */}
+      <div className="absolute top-6 right-6 flex items-center gap-3">
+        {url.hasPassword && (
+          <Dialog open={showPassword} onOpenChange={setShowPassword}>
+            <DialogTrigger asChild>
+              <Button variant="outline" size="sm" title="Show Password" className="flex items-center gap-1">
+                <Eye className="w-4 h-4" />
+                <span className="text-xs">Password</span>
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Shield className="w-5 h-5" />
+                  Password for {url.shortCode}
+                </DialogTitle>
+              </DialogHeader>
+              <div className="text-center space-y-4">
+                <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg flex flex-col items-center">
+                  <p className="text-sm text-gray-600 dark:text-gray-300 mb-2">Password:</p>
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg font-mono font-bold text-gray-900 dark:text-white">
+                      {url.password || 'No password set'}
+                    </span>
+                    <Button size="icon" variant="ghost" onClick={handleCopyPassword} title="Copy Password">
+                      {copiedPassword ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
+                    </Button>
+                  </div>
+                </div>
+                <p className="text-sm text-gray-500">
+                  Share this password with users who need to access this protected link.
+                </p>
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-gray-700 dark:text-gray-200">Active</span>
+          <Switch
+            checked={isSwitchChecked}
+            onCheckedChange={handleToggleRequest}
+            className="border border-gray-300 dark:border-white/30 data-[state=checked]:bg-primary dark:data-[state=checked]:bg-white data-[state=unchecked]:bg-gray-300 dark:data-[state=unchecked]:bg-gray-600"
+          />
+        </div>
+      </div>
       {/* Top: Short URL + QR + copy + privacy icons + password button (right) */}
       <div className="flex flex-col gap-2">
         <div className="flex items-center gap-2 justify-between w-full">
@@ -156,6 +252,7 @@ export const UrlCard: React.FC<UrlCardProps> = ({ url, onCopy, onDelete, onEdit 
             >
               <Copy className="w-3 h-3" />
             </Button>
+            {/* Active toggle moved to absolute top-right */}
             {url.hasPassword && (
               <div className="flex gap-1">
                 <div title="Password Protected">
@@ -164,41 +261,7 @@ export const UrlCard: React.FC<UrlCardProps> = ({ url, onCopy, onDelete, onEdit 
               </div>
             )}
           </div>
-          {/* Password Show Button with label (top right) */}
-          {url.hasPassword && (
-            <Dialog open={showPassword} onOpenChange={setShowPassword}>
-              <DialogTrigger asChild>
-                <Button variant="outline" size="sm" title="Show Password" className="flex items-center gap-1">
-                  <Eye className="w-4 h-4" />
-                  <span className="text-xs">Password</span>
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-md">
-                <DialogHeader>
-                  <DialogTitle className="flex items-center gap-2">
-                    <Shield className="w-5 h-5" />
-                    Password for {url.shortCode}
-                  </DialogTitle>
-                </DialogHeader>
-                <div className="text-center space-y-4">
-                  <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg flex flex-col items-center">
-                    <p className="text-sm text-gray-600 dark:text-gray-300 mb-2">Password:</p>
-                    <div className="flex items-center gap-2">
-                      <span className="text-lg font-mono font-bold text-gray-900 dark:text-white">
-                        {url.password || 'No password set'}
-                      </span>
-                      <Button size="icon" variant="ghost" onClick={handleCopyPassword} title="Copy Password">
-                        {copiedPassword ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
-                      </Button>
-                    </div>
-                  </div>
-                  <p className="text-sm text-gray-500">
-                    Share this password with users who need to access this protected link.
-                  </p>
-                </div>
-              </DialogContent>
-            </Dialog>
-          )}
+          {/* (Password button moved to absolute top-right with the switch) */}
         </div>
         {/* Name (if any) */}
         {url.urlName && (
@@ -295,6 +358,22 @@ export const UrlCard: React.FC<UrlCardProps> = ({ url, onCopy, onDelete, onEdit 
           </Button>
         </div>
       </div>
+
+      {/* Confirmation Dialog */}
+      <AlertDialog open={!!showConfirm.type} onOpenChange={(open) => !open && cancelConfirm()}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm</AlertDialogTitle>
+            <AlertDialogDescription>
+              {showConfirm.message}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={cancelConfirm}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmToggleNow}>Activate Now</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 };
