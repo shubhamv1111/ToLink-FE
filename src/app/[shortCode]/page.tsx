@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ExternalLink, Loader2, AlertCircle } from 'lucide-react';
+import { ExternalLink, Loader2, AlertCircle, Hourglass, CalendarX2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface ShortUrlData {
@@ -13,6 +13,8 @@ interface ShortUrlData {
   isPrivate: boolean;
   hasPassword: boolean;
   urlName?: string;
+  activationAt?: string;
+  expiresAt?: string;
 }
 
 export default function ShortCodeRedirect() {
@@ -39,7 +41,7 @@ export default function ShortCodeRedirect() {
         // Simulate API delay
         await new Promise(resolve => setTimeout(resolve, 1000));
         
-        // Check localStorage first for URLs created from homepage
+        // Check localStorage first for URLs created/stored locally
         const storedUrls = JSON.parse(localStorage.getItem('shortenedUrls') || '[]');
         let foundUrl = storedUrls.find((url: any) => url.shortCode === shortCode);
         
@@ -79,6 +81,25 @@ export default function ShortCodeRedirect() {
         }
 
         setUrlData(foundUrl);
+
+        // Check activation / expiration and redirect to status pages
+        const now = new Date();
+        if (foundUrl.activationAt) {
+          const activateAt = new Date(foundUrl.activationAt);
+          if (now < activateAt) {
+            setIsLoading(false);
+            router.replace(`/not-activated?code=${encodeURIComponent(String(shortCode))}&at=${encodeURIComponent(activateAt.toISOString())}`);
+            return;
+          }
+        }
+        if (foundUrl.expiresAt) {
+          const expireAt = new Date(foundUrl.expiresAt);
+          if (now > expireAt) {
+            setIsLoading(false);
+            router.replace(`/expired?code=${encodeURIComponent(String(shortCode))}&exp=${encodeURIComponent(expireAt.toISOString())}`);
+            return;
+          }
+        }
         
         // If URL has password protection, show password form
         if (foundUrl.hasPassword) {
@@ -171,6 +192,38 @@ export default function ShortCodeRedirect() {
   }
 
   if (error) {
+    if (error === 'NOT_ACTIVATED' && urlData) {
+      const activateAt = urlData.activationAt ? new Date(urlData.activationAt) : null;
+      return (
+        <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex items-center justify-center p-4">
+          <Card className="p-8 backdrop-blur-sm bg-white/80 dark:bg-gray-800/80 shadow-xl border-0 text-center max-w-md">
+            <Hourglass className="w-16 h-16 text-blue-600 mx-auto mb-4" />
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">This link is not active yet</n>
+            <p className="text-gray-600 dark:text-gray-300 mb-2">The link has been scheduled to activate soon.</p>
+            {activateAt && (
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">Scheduled activation: {activateAt.toLocaleString()}</p>
+            )}
+            <Button onClick={goHome} className="w-full">Go Home</Button>
+          </Card>
+        </div>
+      );
+    }
+    if (error === 'EXPIRED' && urlData) {
+      const expireAt = urlData.expiresAt ? new Date(urlData.expiresAt) : null;
+      return (
+        <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex items-center justify-center p-4">
+          <Card className="p-8 backdrop-blur-sm bg-white/80 dark:bg-gray-800/80 shadow-xl border-0 text-center max-w-md">
+            <CalendarX2 className="w-16 h-16 text-red-600 mx-auto mb-4" />
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">This link has expired</h1>
+            <p className="text-gray-600 dark:text-gray-300 mb-2">The link is no longer available.</p>
+            {expireAt && (
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">Expired on: {expireAt.toLocaleString()}</p>
+            )}
+            <Button onClick={goHome} className="w-full">Go Home</Button>
+          </Card>
+        </div>
+      );
+    }
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex items-center justify-center p-4">
         <Card className="p-8 backdrop-blur-sm bg-white/80 dark:bg-gray-800/80 shadow-xl border-0 text-center max-w-md">

@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react';
-import { Copy, Link2, QrCode, BarChart3, Zap, Shield, Globe, CheckCircle, Edit2, Check, X } from 'lucide-react';
+import { Copy, Link2, QrCode, BarChart3, Zap, Shield, Globe, CheckCircle, Edit2, Check, X, Calendar as CalendarIcon, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
@@ -12,6 +12,9 @@ import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { generateShortUrl } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { Switch } from '@/components/ui/switch';
 
 interface ShortenedUrl {
   originalUrl: string;
@@ -23,6 +26,8 @@ interface ShortenedUrl {
   clickCount: number;
   isPrivate: boolean;
   hasPassword: boolean;
+  activationAt?: string;
+  expiresAt?: string;
 }
 
 export default function HomePage() {
@@ -38,6 +43,12 @@ export default function HomePage() {
   const [editCustomAlias, setEditCustomAlias] = useState('');
   const { toast } = useToast();
   const { isAuthenticated } = useAuth();
+  const [enableActivation, setEnableActivation] = useState(false);
+  const [activationDate, setActivationDate] = useState<Date | undefined>(undefined);
+  const [activationTime, setActivationTime] = useState('');
+  const [enableExpiration, setEnableExpiration] = useState(false);
+  const [expirationDate, setExpirationDate] = useState<Date | undefined>(undefined);
+  const [expirationTime, setExpirationTime] = useState('');
 
   const isValidUrl = (string: string) => {
     try {
@@ -73,6 +84,14 @@ export default function HomePage() {
       // Simulate API call for demo purposes
       await new Promise(resolve => setTimeout(resolve, 1500));
       
+      const buildIsoFromDateTime = (dateObj?: Date, timeString?: string): string | undefined => {
+        if (!dateObj) return undefined;
+        const d = new Date(dateObj);
+        const [hh, mm] = (timeString || '00:00').split(':');
+        d.setHours(Number(hh || 0), Number(mm || 0), 0, 0);
+        return d.toISOString();
+      };
+
       // For demo purposes, use a specific short code if no custom alias
       const shortCode = customAlias || (url.includes('example.com') ? 'fr7b2t' : Math.random().toString(36).substring(2, 8));
       const newShortenedUrl: ShortenedUrl = {
@@ -84,7 +103,9 @@ export default function HomePage() {
         createdAt: new Date().toISOString(),
         clickCount: 0,
         isPrivate: !!isAuthenticated,
-        hasPassword: false
+        hasPassword: false,
+        activationAt: enableActivation ? buildIsoFromDateTime(activationDate, activationTime) : undefined,
+        expiresAt: enableExpiration ? buildIsoFromDateTime(expirationDate, expirationTime) : undefined
       };
       
       // Store in localStorage for access from shortCode page
@@ -257,6 +278,101 @@ export default function HomePage() {
                     className="h-12"
                   />
                 </div>
+              </div>
+            </div>
+            {/* Scheduling section */}
+            <div className="space-y-4">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <CalendarIcon className="w-4 h-4 text-gray-600" />
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Activation Schedule</span>
+                  </div>
+                  <Switch
+                    checked={enableActivation}
+                    onCheckedChange={(checked) => {
+                      setEnableActivation(checked);
+                      if (!checked) {
+                        setActivationDate(undefined);
+                        setActivationTime('');
+                      }
+                    }}
+                  />
+                </div>
+                {enableActivation && (
+                  <div className="grid md:grid-cols-2 gap-2">
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" type="button" className="justify-start font-normal">
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {activationDate ? activationDate.toLocaleDateString() : 'Pick date'}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={activationDate}
+                          onSelect={(d) => setActivationDate(d)}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    <div className="flex items-center gap-2">
+                      <Clock className="h-4 w-4 text-gray-600" />
+                      <Input
+                        type="time"
+                        value={activationTime}
+                        onChange={(e) => setActivationTime(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <CalendarIcon className="w-4 h-4 text-gray-600" />
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Expiration</span>
+                  </div>
+                  <Switch
+                    checked={enableExpiration}
+                    onCheckedChange={(checked) => {
+                      setEnableExpiration(checked);
+                      if (!checked) {
+                        setExpirationDate(undefined);
+                        setExpirationTime('');
+                      }
+                    }}
+                  />
+                </div>
+                {enableExpiration && (
+                  <div className="grid md:grid-cols-2 gap-2">
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" type="button" className="justify-start font-normal">
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {expirationDate ? expirationDate.toLocaleDateString() : 'Pick date'}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={expirationDate}
+                          onSelect={(d) => setExpirationDate(d)}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    <div className="flex items-center gap-2">
+                      <Clock className="h-4 w-4 text-gray-600" />
+                      <Input
+                        type="time"
+                        value={expirationTime}
+                        onChange={(e) => setExpirationTime(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
             

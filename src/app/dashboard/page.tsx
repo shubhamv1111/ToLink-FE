@@ -27,6 +27,8 @@ interface UrlData {
   hasPassword: boolean;
   urlName?: string;
   password?: string;
+  activationAt?: string;
+  expiresAt?: string;
 }
 
 const Dashboard = () => {
@@ -133,9 +135,29 @@ const Dashboard = () => {
   };
 
   const editUrl = (id: string, updatedData: any) => {
-    setUrls(urls.map(url => 
+    const updatedList = urls.map(url => 
       url.id === id ? { ...url, ...updatedData } : url
-    ));
+    );
+    setUrls(updatedList);
+    // Sync to localStorage so redirect route can read scheduling info
+    try {
+      const stored = JSON.parse(localStorage.getItem('shortenedUrls') || '[]');
+      const foundIndex = stored.findIndex((u: any) => u.shortCode === updatedData.shortCode || u.shortCode === urls.find(x => x.id === id)?.shortCode);
+      if (foundIndex >= 0) {
+        stored[foundIndex] = {
+          ...stored[foundIndex],
+          originalUrl: updatedData.originalUrl ?? stored[foundIndex].originalUrl,
+          shortCode: updatedData.shortCode ?? stored[foundIndex].shortCode,
+          shortUrl: updatedData.shortUrl ?? stored[foundIndex].shortUrl,
+          urlName: updatedData.urlName ?? stored[foundIndex].urlName,
+          isPrivate: updatedData.isPrivate ?? stored[foundIndex].isPrivate,
+          hasPassword: updatedData.hasPassword ?? stored[foundIndex].hasPassword,
+          activationAt: updatedData.activationAt ?? stored[foundIndex].activationAt,
+          expiresAt: updatedData.expiresAt ?? stored[foundIndex].expiresAt,
+        };
+      }
+      localStorage.setItem('shortenedUrls', JSON.stringify(stored));
+    } catch {}
     toast({
       title: "URL Updated",
       description: "The link has been updated successfully",
@@ -154,10 +176,32 @@ const Dashboard = () => {
       isPrivate: linkData.isPrivate,
       hasPassword: linkData.hasPassword,
       urlName: linkData.urlName,
-      password: linkData.password
+      password: linkData.password,
+      activationAt: linkData.activationAt,
+      expiresAt: linkData.expiresAt
     };
     
     setUrls([newUrl, ...urls]);
+    // Also persist to localStorage so the public redirect can access it
+    try {
+      const existing = JSON.parse(localStorage.getItem('shortenedUrls') || '[]');
+      // avoid duplicates by shortCode
+      const without = existing.filter((u: any) => u.shortCode !== newUrl.shortCode);
+      without.push({
+        originalUrl: newUrl.originalUrl,
+        shortCode: newUrl.shortCode,
+        shortUrl: newUrl.shortUrl,
+        customAlias: newUrl.shortCode,
+        urlName: newUrl.urlName,
+        createdAt: newUrl.createdAt,
+        clickCount: newUrl.clicks,
+        isPrivate: newUrl.isPrivate,
+        hasPassword: newUrl.hasPassword,
+        activationAt: newUrl.activationAt,
+        expiresAt: newUrl.expiresAt
+      });
+      localStorage.setItem('shortenedUrls', JSON.stringify(without));
+    } catch {}
     toast({
       title: "Link Created",
       description: "Your new short link has been created successfully",

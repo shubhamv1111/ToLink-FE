@@ -21,6 +21,8 @@ interface UrlData {
   hasPassword: boolean;
   urlName?: string;
   password?: string;
+  activationAt?: string;
+  expiresAt?: string;
 }
 
 interface UrlCardProps {
@@ -41,7 +43,9 @@ export const UrlCard: React.FC<UrlCardProps> = ({ url, onCopy, onDelete, onEdit 
     return new Date(dateString).toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
-      year: 'numeric'
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
     });
   };
 
@@ -63,7 +67,9 @@ export const UrlCard: React.FC<UrlCardProps> = ({ url, onCopy, onDelete, onEdit 
       shortUrl: generateShortUrl(linkData.customAlias),
       isPrivate: linkData.isPrivate,
       hasPassword: linkData.hasPassword,
-      password: linkData.hasPassword ? linkData.password : undefined
+      password: linkData.hasPassword ? linkData.password : undefined,
+      activationAt: linkData.activationAt,
+      expiresAt: linkData.expiresAt
     });
     setShowEdit(false);
   };
@@ -220,6 +226,18 @@ export const UrlCard: React.FC<UrlCardProps> = ({ url, onCopy, onDelete, onEdit 
               Last clicked {formatDate(url.lastClicked)}
             </span>
           )}
+          {url.activationAt && (
+            <span className="flex items-center gap-1">
+              <Calendar className="w-3 h-3" />
+              Activates on {formatDate(url.activationAt)}
+            </span>
+          )}
+          {url.expiresAt && (
+            <span className="flex items-center gap-1">
+              <Calendar className="w-3 h-3" />
+              Expires on {formatDate(url.expiresAt)}
+            </span>
+          )}
         </div>
         {/* Clicks and actions */}
         <div className="flex items-center gap-3 mt-2 md:mt-0">
@@ -240,7 +258,9 @@ export const UrlCard: React.FC<UrlCardProps> = ({ url, onCopy, onDelete, onEdit 
               customAlias: url.shortCode,
               isPrivate: url.isPrivate,
               hasPassword: url.hasPassword,
-              password: url.password
+              password: url.password,
+              activationAt: url.activationAt,
+              expiresAt: url.expiresAt
             }}
             editMode={true}
           />
