@@ -40,19 +40,9 @@ const About = () => {
 
   const team = [
     {
-      name: "Alex Johnson",
-      role: "Founder & CEO",
-      description: "Serial entrepreneur with 10+ years in tech"
-    },
-    {
-      name: "Sarah Chen",
-      role: "CTO",
-      description: "Former Google engineer, expert in scalable systems"
-    },
-    {
-      name: "Mike Rodriguez",
-      role: "Lead Designer",
-      description: "Award-winning designer focused on user experience"
+      name: "Shubham Vishwakarma",
+      role: "Developer",
+      description: "Developer of ToLink"
     }
   ];
 

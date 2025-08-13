@@ -60,7 +60,7 @@ const Contact = () => {
     {
       icon: <MapPin className="w-6 h-6" />,
       title: "Visit Us",
-      details: "123 Tech Street, San Francisco, CA",
+      details: "India",
       description: "By appointment only"
     }
   ];
