@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell, ReferenceDot } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell, ReferenceArea, ReferenceLine } from 'recharts';
 import { useAuth } from '@/contexts/AuthContext';
 import Link from 'next/link';
 import { generateShortUrl } from '@/lib/utils';
@@ -166,7 +166,7 @@ const Analytics = () => {
 
       const diffDays = Math.max(1, Math.ceil((windowEnd.getTime() - windowStart.getTime()) / (1000 * 60 * 60 * 24)) + 1);
 
-      const data: { date: string; clicks: number; activeClicks: number | null; inactiveClicks: number | null; isExpired?: boolean }[] = [];
+      const data: { date: string; clicks: number; isActive: boolean; isExpired?: boolean }[] = [];
       const expiredDateStr = url.expiredAt ? new Date(url.expiredAt).toISOString().slice(0, 10) : undefined;
 
       for (let i = 0; i < diffDays; i++) {
@@ -192,21 +192,45 @@ const Analytics = () => {
         data.push({
           date: dayStr,
           clicks,
-          activeClicks: isActive ? clicks : null,
-          inactiveClicks: isActive ? null : clicks,
+          isActive,
           isExpired: expiredDateStr ? dayStr === expiredDateStr : false
         });
       }
 
       const totalClicks = data.reduce((sum, d) => sum + d.clicks, 0);
       const avgDailyClicks = Math.round(totalClicks / diffDays);
+
+      // Build continuous colored segments (overlap the boundary point)
       return {
         clicksData: data,
         totalClicks,
         uniqueVisitors: Math.round(totalClicks * 0.75),
         clickRate: '2.6%',
         avgDailyClicks,
-        expiredMarker: expiredDateStr
+        expiredMarker: expiredDateStr,
+        inactiveAreas: (() => {
+          const areas: { start: string; end: string }[] = [];
+          if (data.length === 0) return areas;
+          let inInactive = !data[0].isActive;
+          let startIdx = inInactive ? 0 : -1;
+          for (let i = 1; i < data.length; i++) {
+            const inactive = !data[i].isActive;
+            if (!inInactive && inactive) {
+              inInactive = true;
+              startIdx = i - 1; // include boundary day
+            } else if (inInactive && !inactive) {
+              inInactive = false;
+              const start = data[startIdx].date;
+              // Use the previous day's date as the end so ReferenceArea width is visible
+              const end = data[i - 1].date;
+              areas.push({ start, end });
+            }
+          }
+          if (inInactive) {
+            areas.push({ start: data[startIdx].date, end: data[data.length - 1].date });
+          }
+          return areas;
+        })()
       };
     }
   };
@@ -372,8 +396,8 @@ const Analytics = () => {
                         if (!active || !payload) return null;
                         const p = payload as any;
                         const point = (p[0] && p[0].payload) || {};
-                        const isActive = point.activeClicks != null;
-                        const isExpired = point.isExpired;
+                        const isActive = !!point.isActive;
+                        const isExpired = !!point.isExpired;
                         return (
                           <div className="rounded-md p-2 text-sm bg-gray-900 text-white shadow-lg">
                             <div className="font-medium mb-1">{new Date(label as any).toLocaleDateString()}</div>
@@ -390,11 +414,16 @@ const Analytics = () => {
                     <Line type="monotone" dataKey="clicks" stroke="#3B82F6" strokeWidth={3} dot={{ fill: '#3B82F6' }} connectNulls={true} />
                   ) : (
                     <>
-                      <Line type="monotone" dataKey="inactiveClicks" stroke="#3B82F6" strokeWidth={3} dot={false} connectNulls={false} />
-                      <Line type="monotone" dataKey="activeClicks" stroke="#10B981" strokeWidth={3} dot={false} connectNulls={false} />
+                      {/* Inactive background shading */}
+                      {(analyticsData.inactiveAreas || []).map((area: any, idx: number) => (
+                        <ReferenceArea key={`ia-${idx}`} x1={area.start} x2={area.end} fill="#DBEAFE" fillOpacity={0.35} />
+                      ))}
+                      {/* Expiration dashed vertical line */}
                       {analyticsData.expiredMarker && (
-                        <ReferenceDot x={analyticsData.expiredMarker} y={(analyticsData.clicksData.find((d: any) => d.date === analyticsData.expiredMarker)?.clicks) || 0} r={5} fill="#EF4444" stroke="none" isFront />
+                        <ReferenceLine x={analyticsData.expiredMarker} stroke="#EF4444" strokeDasharray="6 6" />
                       )}
+                      {/* Single continuous line */}
+                      <Line type="monotone" dataKey="clicks" stroke="#3B82F6" strokeWidth={3} dot={false} connectNulls={true} />
                     </>
                   )}
                 </LineChart>
