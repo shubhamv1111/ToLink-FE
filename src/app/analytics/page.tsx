@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react';
-import { BarChart3, TrendingUp, Globe, Clock, Users, Calendar, ArrowUp, ArrowDown, Link2, Filter } from 'lucide-react';
+import { BarChart3, TrendingUp, Globe, Clock, Users, Calendar, ArrowUp, ArrowDown, Link2, Filter, ChevronLeft } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -273,12 +273,59 @@ const Analytics = () => {
     { name: 'Tablet', value: 20, color: '#10B981' }
   ];
 
-  const countryData = [
-    { country: 'United States', clicks: 234, percentage: 45 },
-    { country: 'United Kingdom', clicks: 156, percentage: 30 },
-    { country: 'Canada', clicks: 78, percentage: 15 },
-    { country: 'Australia', clicks: 52, percentage: 10 }
+  type CityData = { city: string; clicks: number };
+  type CountryData = { country: string; clicks: number; percentage: number; cities: CityData[] };
+
+  const countryData: CountryData[] = [
+    { 
+      country: 'United States', 
+      clicks: 234, 
+      percentage: 45,
+      cities: [
+        { city: 'New York', clicks: 120 },
+        { city: 'Los Angeles', clicks: 64 },
+        { city: 'Chicago', clicks: 50 }
+      ]
+    },
+    { 
+      country: 'United Kingdom', 
+      clicks: 156, 
+      percentage: 30,
+      cities: [
+        { city: 'London', clicks: 82 },
+        { city: 'Manchester', clicks: 42 },
+        { city: 'Birmingham', clicks: 32 }
+      ]
+    },
+    { 
+      country: 'Canada', 
+      clicks: 78, 
+      percentage: 15,
+      cities: [
+        { city: 'Toronto', clicks: 35 },
+        { city: 'Vancouver', clicks: 25 },
+        { city: 'Montreal', clicks: 18 }
+      ]
+    },
+    { 
+      country: 'Australia', 
+      clicks: 52, 
+      percentage: 10,
+      cities: [
+        { city: 'Sydney', clicks: 20 },
+        { city: 'Melbourne', clicks: 18 },
+        { city: 'Brisbane', clicks: 14 }
+      ]
+    }
   ];
+
+  const [activeCountry, setActiveCountry] = useState<CountryData | null>(null);
+  const getCityBarWidth = (country: CountryData | null, clicks: number) => {
+    if (!country || !country.cities || country.cities.length === 0) return '0%';
+    const maxClicks = country.cities.reduce((m, c) => Math.max(m, c.clicks), 1);
+    const pct = Math.round((clicks / Math.max(1, maxClicks)) * 100);
+    return `${Math.min(100, pct)}%`;
+  };
 
   const referrerData = [
     { source: 'Direct', clicks: 180 },
@@ -518,28 +565,78 @@ const Analytics = () => {
         <div className="grid lg:grid-cols-2 gap-8">
           {/* Geographic Data */}
           <Card className="p-6 backdrop-blur-sm bg-white/80 dark:bg-gray-800/80 shadow-xl border-0">
-            <div className="flex items-center gap-2 mb-4">
-              <Globe className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Top Countries</h3>
-            </div>
-            <div className="space-y-4 max-h-80 overflow-y-auto pr-2">
-              {countryData.map((country, index) => (
-                <div key={index} className="flex items-center justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-sm font-medium text-gray-900 dark:text-white">{country.country}</span>
-                      <span className="text-sm text-gray-600 dark:text-gray-300">{country.clicks} clicks</span>
-                    </div>
-                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                      <div 
-                        className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                        style={{ width: `${country.percentage}%` }}
-                      ></div>
-                    </div>
+            {!activeCountry ? (
+              <>
+                <div className="flex items-center gap-2 mb-4">
+                  <Globe className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Countries and Regions</h3>
+                </div>
+                <div className="space-y-4 max-h-80 overflow-y-auto pr-2">
+                  {countryData.map((country) => (
+                    <button
+                      key={country.country}
+                      type="button"
+                      onClick={() => setActiveCountry(country)}
+                      className="w-full flex items-center justify-between"
+                    >
+                      <div className="flex-1 pr-3">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-sm font-medium text-gray-900 dark:text-white">{country.country}</span>
+                          <span className="text-sm text-gray-600 dark:text-gray-300">{country.clicks} clicks</span>
+                        </div>
+                        <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                          <div 
+                            className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                            style={{ width: `${country.percentage}%` }}
+                          ></div>
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="grid grid-cols-3 items-center mb-4">
+                  <div className="flex items-center">
+                    <button
+                      type="button"
+                      onClick={() => setActiveCountry(null)}
+                      className="inline-flex items-center gap-1 text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                      Back
+                    </button>
+                  </div>
+                  <div className="flex items-center justify-center">
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white text-center">
+                      {activeCountry.country}
+                    </h3>
+                  </div>
+                  <div className="flex items-center justify-end">
+                    <span className="text-sm text-gray-600 dark:text-gray-300">{activeCountry.clicks} total clicks</span>
                   </div>
                 </div>
-              ))}
-            </div>
+                <div className="space-y-4 max-h-80 overflow-y-auto pr-2">
+                  {activeCountry.cities.map((city) => (
+                    <div key={city.city} className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-sm font-medium text-gray-900 dark:text-white">{city.city}</span>
+                          <span className="text-sm text-gray-600 dark:text-gray-300">{city.clicks} clicks</span>
+                        </div>
+                        <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                          <div
+                            className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                            style={{ width: getCityBarWidth(activeCountry, city.clicks) }}
+                          ></div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
           </Card>
 
           {/* Top Performing URLs */}
