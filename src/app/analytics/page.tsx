@@ -125,6 +125,16 @@ const Analytics = () => {
         let dayClicks = 0;
         userUrls.forEach(u => {
           const periods = (u.statusPeriods && u.statusPeriods.length > 0) ? u.statusPeriods : [{ start: u.createdAt, end: u.expiredAt }];
+
+          // compute per-link tracking cutoff: 30 days after last active end; if still active, no cutoff (today)
+          const lastEnded = [...periods].reverse().find(p => !!p.end)?.end;
+          let trackingCutoff: Date | null = null;
+          if (lastEnded) {
+            const e = new Date(lastEnded + 'T00:00:00Z');
+            const cut = new Date(e);
+            cut.setDate(cut.getDate() + 30);
+            trackingCutoff = cut;
+          }
           const isActive = periods.some(p => {
             const s = new Date(p.start + 'T00:00:00Z');
             const e = p.end ? new Date(p.end + 'T23:59:59Z') : undefined;
@@ -132,6 +142,10 @@ const Analytics = () => {
             const beforeEnd = e ? d.getTime() <= e.getTime() : true;
             return afterStart && beforeEnd;
           });
+          // skip contribution if beyond cutoff and not active anymore
+          if (trackingCutoff && d.getTime() > trackingCutoff.getTime()) {
+            return;
+          }
           const seasonal = Math.sin(((i + 1) / diffDays) * Math.PI * 2) * 6;
           const weekly = ((i + 1) % 7) * 1.2;
           const baseActive = 14;
@@ -160,14 +174,30 @@ const Analytics = () => {
         ? url.statusPeriods
         : [{ start: url.createdAt, end: url.expiredAt }];
 
-      const windowEnd = new Date();
-      const tentativeStart = isAllTime ? new Date(url.createdAt) : (() => { const d = new Date(); d.setDate(d.getDate() - (days as number) + 1); return d; })();
+      // Determine last active end and tracking cutoff (30 days after last end)
+      const lastEnded = [...periods].reverse().find(p => !!p.end)?.end;
+      const now = new Date();
+      let trackingCutoff: Date | null = null;
+      if (lastEnded) {
+        const e = new Date(lastEnded + 'T00:00:00Z');
+        const cut = new Date(e);
+        cut.setDate(cut.getDate() + 30);
+        trackingCutoff = cut;
+      }
+
+      // Window end is limited by tracking cutoff (if any), else today
+      let windowEnd = now;
+      if (trackingCutoff && trackingCutoff.getTime() < now.getTime()) {
+        windowEnd = trackingCutoff;
+      }
+      // Window start honors selected period but not before createdAt
+      const tentativeStart = isAllTime ? new Date(url.createdAt) : (() => { const d = new Date(windowEnd); d.setDate(windowEnd.getDate() - (days as number) + 1); return d; })();
       const windowStart = new Date(Math.max(tentativeStart.getTime(), new Date(url.createdAt).getTime()));
 
       const diffDays = Math.max(1, Math.ceil((windowEnd.getTime() - windowStart.getTime()) / (1000 * 60 * 60 * 24)) + 1);
 
       const data: { date: string; clicks: number; isActive: boolean; isExpired?: boolean }[] = [];
-      const expiredDateStr = url.expiredAt ? new Date(url.expiredAt).toISOString().slice(0, 10) : undefined;
+      const lastEndStr = lastEnded ? new Date(lastEnded + 'T00:00:00Z').toISOString().slice(0, 10) : (url.expiredAt ? new Date(url.expiredAt).toISOString().slice(0, 10) : undefined);
 
       for (let i = 0; i < diffDays; i++) {
         const d = new Date(windowStart);
@@ -193,7 +223,7 @@ const Analytics = () => {
           date: dayStr,
           clicks,
           isActive,
-          isExpired: expiredDateStr ? dayStr === expiredDateStr : false
+          isExpired: lastEndStr ? dayStr === lastEndStr : false
         });
       }
 
@@ -207,7 +237,7 @@ const Analytics = () => {
         uniqueVisitors: Math.round(totalClicks * 0.75),
         clickRate: '2.6%',
         avgDailyClicks,
-        expiredMarker: expiredDateStr,
+        expiredMarker: lastEndStr,
         inactiveAreas: (() => {
           const areas: { start: string; end: string }[] = [];
           if (data.length === 0) return areas;
