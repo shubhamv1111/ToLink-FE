@@ -31,6 +31,16 @@ const Analytics = () => {
   const [selectedUrl, setSelectedUrl] = useState('all');
   const { isAuthenticated, user } = useAuth();
 
+  // Produce a deterministic percentage between 1 and 20 based on stable inputs
+  const getStableChangePercent = (shortCode: string, clicks: number) => {
+    let seed = 0;
+    for (const ch of shortCode) {
+      seed = (seed + ch.charCodeAt(0)) % 997;
+    }
+    const pct = (seed + (clicks % 97)) % 20; // 0..19
+    return pct + 1; // 1..20
+  };
+
   // Mock user URLs data
   const [userUrls, setUserUrls] = useState<UrlData[]>([
     {
@@ -666,7 +676,7 @@ const Analytics = () => {
                       </span>
                     )}
                     <div className="text-green-600 text-sm font-medium">
-                      +{Math.floor(Math.random() * 20) + 1}%
+                      +{getStableChangePercent(url.shortCode, url.clicks)}%
                     </div>
                   </div>
                 </div>
