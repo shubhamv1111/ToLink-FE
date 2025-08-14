@@ -20,3 +20,20 @@ export function getBaseUrl(): string {
 export function generateShortUrl(shortCode: string): string {
   return `${getBaseUrl()}/${shortCode}`;
 }
+
+// Deterministically derive a short code from a source string (e.g., original URL)
+// Produces a stable, lowercase base36 hash trimmed to 6 characters
+export function generateDeterministicCodeFromString(
+  source: string,
+  length: number = 6
+): string {
+  let hash = 0;
+  for (let i = 0; i < source.length; i++) {
+    hash = ((hash << 5) - hash + source.charCodeAt(i)) | 0; // 32-bit int
+  }
+  const positive = Math.abs(hash);
+  const base36 = positive.toString(36);
+  // Pad with '0' to ensure sufficient length, then slice
+  const padded = base36 + "000000";
+  return padded.substring(0, length).toLowerCase();
+}

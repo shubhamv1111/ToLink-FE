@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { BarChart3, TrendingUp, Globe, Clock, Users, Calendar, ArrowUp, ArrowDown, Link2, Filter, ChevronLeft } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -31,303 +31,242 @@ const Analytics = () => {
   const [selectedUrl, setSelectedUrl] = useState('all');
   const { isAuthenticated, user } = useAuth();
 
-  // Produce a deterministic percentage between 1 and 20 based on stable inputs
-  const getStableChangePercent = (shortCode: string, clicks: number) => {
-    let seed = 0;
-    for (const ch of shortCode) {
-      seed = (seed + ch.charCodeAt(0)) % 997;
-    }
-    const pct = (seed + (clicks % 97)) % 20; // 0..19
-    return pct + 1; // 1..20
+  type ClickPoint = { date: string; clicks: number };
+  const [clicksPerUrl, setClicksPerUrl] = useState<Record<string, ClickPoint[]>>({});
+  const [statsMeta, setStatsMeta] = useState<any | null>(null);
+
+  const [userUrls, setUserUrls] = useState<UrlData[]>([]);
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const res = await fetch('/data/urls.json');
+        const data = await res.json();
+        const mapped: UrlData[] = (data || []).map((u: any) => ({
+          id: String(u.id),
+          originalUrl: u.originalUrl,
+          shortCode: u.shortCode,
+          shortUrl: generateShortUrl(u.shortCode),
+          clicks: Number(u.clicks || 0),
+          createdAt: u.createdAt,
+          lastClicked: u.lastClicked,
+          expiredAt: u.expiredAt,
+          statusPeriods: u.statusPeriods,
+          isPrivate: !!u.isPrivate,
+          hasPassword: !!u.hasPassword
+        }));
+        setUserUrls(mapped);
+      } catch (e) {
+        // noop
+      }
+    };
+    load();
+  }, []);
+
+  // Load clicks per URL from JSON
+  useEffect(() => {
+    const loadClicks = async () => {
+      try {
+        const res = await fetch('/data/clicks.json');
+        const data = await res.json();
+        setClicksPerUrl(data.perUrl || {});
+      } catch (e) {
+        // noop
+      }
+    };
+    loadClicks();
+  }, []);
+
+  const getSeriesForUrl = (urlId: string): ClickPoint[] => {
+    const series = clicksPerUrl[urlId] || [];
+    return [...series].sort((a, b) => a.date.localeCompare(b.date));
   };
 
-  // Mock user URLs data
-  const [userUrls, setUserUrls] = useState<UrlData[]>([
-    {
-      id: '1',
-      originalUrl: 'https://example.com/very-long-url-that-needs-shortening',
-      shortCode: 'abc123',
-      shortUrl: generateShortUrl('abc123'),
-      clicks: 1247,
-      createdAt: '2024-01-15T10:30:00Z',
-      lastClicked: '2024-01-20T14:22:00Z',
-      statusPeriods: [
-        { start: '2024-01-15' }
-      ],
-      isPrivate: false,
-      hasPassword: false
-    },
-    {
-      id: '2',
-      originalUrl: 'https://github.com/username/repository-name',
-      shortCode: 'github1',
-      shortUrl: generateShortUrl('github1'),
-      clicks: 89,
-      createdAt: '2024-01-10T09:15:00Z',
-      expiredAt: '2024-01-19T16:45:00Z',
-      lastClicked: '2024-01-19T16:45:00Z',
-      statusPeriods: [
-        { start: '2024-01-10', end: '2024-01-13' },
-        { start: '2024-01-16', end: '2024-01-19' }
-      ],
-      isPrivate: true,
-      hasPassword: false
-    },
-    {
-      id: '3',
-      originalUrl: 'https://docs.google.com/document/d/1234567890/edit',
-      shortCode: 'docs42',
-      shortUrl: generateShortUrl('docs42'),
-      clicks: 432,
-      createdAt: '2024-01-08T14:20:00Z',
-      lastClicked: '2024-01-18T11:30:00Z',
-      statusPeriods: [
-        { start: '2024-01-08', end: '2024-01-12' },
-        { start: '2024-01-14' }
-      ],
-      isPrivate: false,
-      hasPassword: true
-    }
-  ]);
+  const getWindowedSeries = (series: ClickPoint[], days?: number): ClickPoint[] => {
+    if (!series.length) return [];
+    if (!days) return series;
+    // select last N days by date
+    return series.slice(-days);
+  };
 
-  // Mock data - this would come from API based on selected URL
-  // Helper to generate demo clicks data for the selected period
-  const getAnalyticsData = () => {
+  const normalizeDateStr = (s: string): string => new Date(s + 'T00:00:00Z').toISOString().slice(0, 10);
+
+  const isDayActiveForUrl = (dayStr: string, url?: UrlData): boolean => {
+    if (!url) return false;
+    const enabled = (url as any).enabled !== false;
+    if (!enabled) return false;
+    const day = new Date(dayStr + 'T12:00:00Z');
+    const periods = (url.statusPeriods && url.statusPeriods.length > 0)
+      ? url.statusPeriods
+      : [{ start: url.createdAt, end: url.expiredAt }];
+    return periods.some(p => {
+      const s = new Date(p.start + 'T00:00:00Z');
+      const e = p.end ? new Date(p.end + 'T23:59:59Z') : undefined;
+      const afterStart = day.getTime() >= s.getTime();
+      const beforeEnd = e ? day.getTime() <= e.getTime() : true;
+      return afterStart && beforeEnd;
+    });
+  };
+
+  const getLastEndedDate = (url?: UrlData): string | undefined => {
+    if (!url) return undefined;
+    const end = url.statusPeriods && [...url.statusPeriods].reverse().find(p => !!p.end)?.end;
+    return end || url.expiredAt || undefined;
+  };
+
+  const hasFutureActivation = (url?: UrlData): boolean => {
+    if (!url || !url.statusPeriods || url.statusPeriods.length === 0) return false;
+    const today = new Date();
+    return url.statusPeriods.some(p => new Date(p.start + 'T00:00:00Z').getTime() > today.getTime());
+  };
+
+  const getInactiveAreas = (series: ClickPoint[], url?: UrlData) => {
+    if (!url || !series.length) return [] as { start: string; end: string }[];
+    const periods = (url.statusPeriods && url.statusPeriods.length > 0)
+      ? url.statusPeriods
+      : [{ start: url.createdAt, end: url.expiredAt }];
+    const data = series.map((p) => {
+      const d = new Date(p.date + 'T00:00:00Z');
+      const isActive = periods.some(per => {
+        const s = new Date(per.start + 'T00:00:00Z');
+        const e = per.end ? new Date(per.end + 'T23:59:59Z') : undefined;
+        const afterStart = d.getTime() >= s.getTime();
+        const beforeEnd = e ? d.getTime() <= e.getTime() : true;
+        return afterStart && beforeEnd;
+      });
+      return { ...p, isActive } as any;
+    });
+    const areas: { start: string; end: string }[] = [];
+    let inInactive = data.length > 0 ? !data[0].isActive : false;
+    let startIdx = inInactive ? 0 : -1;
+    for (let i = 1; i < data.length; i++) {
+      const inactive = !data[i].isActive;
+      if (!inInactive && inactive) {
+        inInactive = true;
+        startIdx = i - 1;
+      } else if (inInactive && !inactive) {
+        inInactive = false;
+        const start = data[startIdx].date;
+        const end = data[i - 1].date;
+        areas.push({ start, end });
+      }
+    }
+    if (inInactive) {
+      areas.push({ start: data[startIdx].date, end: data[data.length - 1].date });
+    }
+    return areas;
+  };
+
+  const analyticsData = useMemo(() => {
     const isAllTime = selectedPeriod === 'allTime';
     const days = selectedPeriod === '7days' ? 7 : selectedPeriod === '30days' ? 30 : selectedPeriod === '90days' ? 90 : undefined;
 
-    const generateClicksData = (numDays: number, baseClicks: number) => {
-      const today = new Date();
-      const data: { date: string; clicks: number }[] = [];
-      for (let i = numDays - 1; i >= 0; i--) {
-        const d = new Date(today);
-        d.setDate(today.getDate() - i);
-        // Smooth variation so chart looks realistic and readable
-        const seasonal = Math.sin(((numDays - i) / numDays) * Math.PI * 2) * 12;
-        const weekly = ((numDays - i) % 7) * 2;
-        const clicks = Math.max(5, Math.round(baseClicks + seasonal + weekly));
-        data.push({ date: d.toISOString().slice(0, 10), clicks });
-      }
-      return data;
-    };
-
     if (selectedUrl === 'all') {
-      // Combine all URLs into a continuous series
-      const today = new Date();
-      const windowEnd = today;
-      let windowStart: Date;
-      if (isAllTime) {
-        windowStart = new Date(Math.min(...userUrls.map(u => new Date(u.createdAt).getTime())));
-      } else {
-        windowStart = new Date();
-        windowStart.setDate(today.getDate() - (days as number) + 1);
+      // Merge all URL series by date and sum clicks, enforcing per-link 30-day inactive cutoff
+      const allIds = userUrls.map(u => u.id);
+      const allPoints: Record<string, number> = {};
+      let allDates: string[] = [];
+      for (const id of allIds) {
+        const url = userUrls.find(u => u.id === id);
+        if (!url) continue;
+        let series = getSeriesForUrl(id);
+        // Apply selected window
+        if (!isAllTime && days) {
+          series = getWindowedSeries(series, days);
+        }
+        // Apply per-link 30-day cutoff after last inactive end unless future activation exists
+        const lastEnded = getLastEndedDate(url);
+        if (lastEnded && !hasFutureActivation(url)) {
+          const cut = new Date(lastEnded + 'T00:00:00Z');
+          cut.setDate(cut.getDate() + 30);
+          const cutoffStr = cut.toISOString().slice(0, 10);
+          series = series.filter(p => p.date <= cutoffStr);
+        }
+        // Cap series to last 100 days
+        if (series.length > 100) {
+          series = series.slice(-100);
+        }
+        for (const p of series) {
+          allPoints[p.date] = (allPoints[p.date] || 0) + (p.clicks || 0);
+        }
       }
-
-      const diffDays = Math.max(1, Math.ceil((windowEnd.getTime() - windowStart.getTime()) / (1000 * 60 * 60 * 24)) + 1);
-      const clicksData: { date: string; clicks: number }[] = [];
-
-      for (let i = 0; i < diffDays; i++) {
-        const d = new Date(windowStart);
-        d.setDate(windowStart.getDate() + i);
-        const dayStr = d.toISOString().slice(0, 10);
-
-        // Sum contributions from each URL depending on its active state that day
-        let dayClicks = 0;
-        userUrls.forEach(u => {
-          const periods = (u.statusPeriods && u.statusPeriods.length > 0) ? u.statusPeriods : [{ start: u.createdAt, end: u.expiredAt }];
-
-          // compute per-link tracking cutoff: 30 days after last active end; if still active, no cutoff (today)
-          const lastEnded = [...periods].reverse().find(p => !!p.end)?.end;
-          let trackingCutoff: Date | null = null;
-          if (lastEnded) {
-            const e = new Date(lastEnded + 'T00:00:00Z');
-            const cut = new Date(e);
-            cut.setDate(cut.getDate() + 30);
-            trackingCutoff = cut;
-          }
-          const isActive = periods.some(p => {
-            const s = new Date(p.start + 'T00:00:00Z');
-            const e = p.end ? new Date(p.end + 'T23:59:59Z') : undefined;
-            const afterStart = d.getTime() >= s.getTime();
-            const beforeEnd = e ? d.getTime() <= e.getTime() : true;
-            return afterStart && beforeEnd;
-          });
-          // skip contribution if beyond cutoff and not active anymore
-          if (trackingCutoff && d.getTime() > trackingCutoff.getTime()) {
-            return;
-          }
-          const seasonal = Math.sin(((i + 1) / diffDays) * Math.PI * 2) * 6;
-          const weekly = ((i + 1) % 7) * 1.2;
-          const baseActive = 14;
-          const baseInactive = 4;
-          dayClicks += Math.max(0, Math.round((isActive ? baseActive : baseInactive) + seasonal + weekly));
-        });
-
-        clicksData.push({ date: dayStr, clicks: dayClicks });
+      allDates = Object.keys(allPoints).sort();
+      let merged = allDates.map(d => ({ date: d, clicks: allPoints[d] }));
+      if (!isAllTime && days) {
+        merged = merged.slice(-days);
       }
-
-      const totalClicks = clicksData.reduce((sum, d) => sum + d.clicks, 0);
+      // Cap to last 100 days for display
+      if (merged.length > 100) {
+        merged = merged.slice(-100);
+      }
+      const totalClicks = merged.reduce((s, p) => s + p.clicks, 0);
+      const avgDailyClicks = merged.length ? Math.round(totalClicks / merged.length) : 0;
       return {
-        clicksData,
+        clicksData: merged,
         totalClicks,
-        uniqueVisitors: Math.round(totalClicks * 0.7),
-        clickRate: '3.0%',
-        avgDailyClicks: Math.round(totalClicks / diffDays)
+        uniqueVisitors: Math.round(totalClicks * (statsMeta?.uniqueVisitorsRatio ?? 0.7)),
+        clickRate: statsMeta?.clickRate ?? '3.0%',
+        avgDailyClicks
       };
     } else {
       const url = userUrls.find(u => u.id === selectedUrl);
       if (!url) {
-        return { clicksData: [], totalClicks: 0, uniqueVisitors: 0, clickRate: '0%', avgDailyClicks: 0 };
+        return { clicksData: [], totalClicks: 0, uniqueVisitors: 0, clickRate: '0%', avgDailyClicks: 0 } as any;
       }
-
-      const periods = (url.statusPeriods && url.statusPeriods.length > 0)
-        ? url.statusPeriods
-        : [{ start: url.createdAt, end: url.expiredAt }];
-
-      // Determine last active end and tracking cutoff (30 days after last end)
-      const lastEnded = [...periods].reverse().find(p => !!p.end)?.end;
-      const now = new Date();
-      let trackingCutoff: Date | null = null;
-      if (lastEnded) {
-        const e = new Date(lastEnded + 'T00:00:00Z');
-        const cut = new Date(e);
+      let series = getSeriesForUrl(url.id);
+      if (!isAllTime && days) {
+        series = getWindowedSeries(series, days);
+      }
+      // Enforce 30-day tracking cutoff after last inactive period end, unless a future activation is scheduled
+      const lastEnded = getLastEndedDate(url);
+      if (lastEnded && !hasFutureActivation(url)) {
+        const cut = new Date(lastEnded + 'T00:00:00Z');
         cut.setDate(cut.getDate() + 30);
-        trackingCutoff = cut;
+        const cutoffStr = cut.toISOString().slice(0, 10);
+        series = series.filter(p => p.date <= cutoffStr);
       }
-
-      // Window end is limited by tracking cutoff (if any), else today
-      let windowEnd = now;
-      if (trackingCutoff && trackingCutoff.getTime() < now.getTime()) {
-        windowEnd = trackingCutoff;
+      // Cap to last 100 days for display
+      if (series.length > 100) {
+        series = series.slice(-100);
       }
-      // Window start honors selected period but not before createdAt
-      const tentativeStart = isAllTime ? new Date(url.createdAt) : (() => { const d = new Date(windowEnd); d.setDate(windowEnd.getDate() - (days as number) + 1); return d; })();
-      const windowStart = new Date(Math.max(tentativeStart.getTime(), new Date(url.createdAt).getTime()));
-
-      const diffDays = Math.max(1, Math.ceil((windowEnd.getTime() - windowStart.getTime()) / (1000 * 60 * 60 * 24)) + 1);
-
-      const data: { date: string; clicks: number; isActive: boolean; isExpired?: boolean }[] = [];
-      const lastEndStr = lastEnded ? new Date(lastEnded + 'T00:00:00Z').toISOString().slice(0, 10) : (url.expiredAt ? new Date(url.expiredAt).toISOString().slice(0, 10) : undefined);
-
-      for (let i = 0; i < diffDays; i++) {
-        const d = new Date(windowStart);
-        d.setDate(windowStart.getDate() + i);
-        const dayStr = d.toISOString().slice(0, 10);
-
-        // determine active on this day based on periods
-        const isActive = periods.some(p => {
-          const s = new Date(p.start + 'T00:00:00Z');
-          const e = p.end ? new Date(p.end + 'T23:59:59Z') : undefined;
-          const afterStart = d.getTime() >= s.getTime();
-          const beforeEnd = e ? d.getTime() <= e.getTime() : true;
-          return afterStart && beforeEnd;
-        });
-
-        const seasonal = Math.sin(((i + 1) / diffDays) * Math.PI * 2) * 10;
-        const weekly = ((i + 1) % 7) * 1.5;
-        const baseActive = 28;
-        const baseInactive = 7;
-        const clicks = Math.max(1, Math.round((isActive ? baseActive : baseInactive) + seasonal + weekly));
-
-        data.push({
-          date: dayStr,
-          clicks,
-          isActive,
-          isExpired: lastEndStr ? dayStr === lastEndStr : false
-        });
-      }
-
-      const totalClicks = data.reduce((sum, d) => sum + d.clicks, 0);
-      const avgDailyClicks = Math.round(totalClicks / diffDays);
-
-      // Build continuous colored segments (overlap the boundary point)
+      const totalClicks = series.reduce((s, p) => s + p.clicks, 0);
+      const avgDailyClicks = series.length ? Math.round(totalClicks / series.length) : 0;
+      const expiredMarker = lastEnded ? new Date(lastEnded + 'T00:00:00Z').toISOString().slice(0, 10) : (url.expiredAt ? new Date(url.expiredAt).toISOString().slice(0, 10) : undefined);
+      const enriched = series.map(p => ({
+        ...p,
+        isActive: isDayActiveForUrl(p.date, url),
+        isExpired: expiredMarker ? p.date === expiredMarker : false
+      }));
       return {
-        clicksData: data,
+        clicksData: enriched,
         totalClicks,
-        uniqueVisitors: Math.round(totalClicks * 0.75),
-        clickRate: '2.6%',
+        uniqueVisitors: Math.round(totalClicks * (statsMeta?.uniqueVisitorsRatio ?? 0.75)),
+        clickRate: statsMeta?.clickRate ?? '2.6%',
         avgDailyClicks,
-        expiredMarker: lastEndStr,
-        inactiveAreas: (() => {
-          const areas: { start: string; end: string }[] = [];
-          if (data.length === 0) return areas;
-          let inInactive = !data[0].isActive;
-          let startIdx = inInactive ? 0 : -1;
-          for (let i = 1; i < data.length; i++) {
-            const inactive = !data[i].isActive;
-            if (!inInactive && inactive) {
-              inInactive = true;
-              startIdx = i - 1; // include boundary day
-            } else if (inInactive && !inactive) {
-              inInactive = false;
-              const start = data[startIdx].date;
-              // Use the previous day's date as the end so ReferenceArea width is visible
-              const end = data[i - 1].date;
-              areas.push({ start, end });
-            }
-          }
-          if (inInactive) {
-            areas.push({ start: data[startIdx].date, end: data[data.length - 1].date });
-          }
-          return areas;
-        })()
-      };
+        expiredMarker,
+        inactiveAreas: getInactiveAreas(series, url)
+      } as any;
     }
+  }, [selectedPeriod, selectedUrl, userUrls, clicksPerUrl, statsMeta]);
+
+  const getChangePercentForUrl = (urlId: string): number => {
+    const series = getSeriesForUrl(urlId);
+    if (series.length < 14) return 0;
+    const last7 = series.slice(-7).reduce((s, p) => s + p.clicks, 0);
+    const prev7 = series.slice(-14, -7).reduce((s, p) => s + p.clicks, 0);
+    if (prev7 === 0) return last7 > 0 ? 100 : 0;
+    const diff = last7 - prev7;
+    return Math.round((diff / prev7) * 100);
   };
 
-  const analyticsData = getAnalyticsData();
+  // analyticsData now computed via useMemo above
 
-  const deviceData = [
-    { name: 'Desktop', value: 45, color: '#3B82F6' },
-    { name: 'Mobile', value: 35, color: '#8B5CF6' },
-    { name: 'Tablet', value: 20, color: '#10B981' }
-  ];
+  const [deviceData, setDeviceData] = useState<any[]>([]);
 
   type CityData = { city: string; clicks: number };
   type CountryData = { country: string; clicks: number; percentage: number; cities: CityData[] };
 
-  const countryData: CountryData[] = [
-    { 
-      country: 'United States', 
-      clicks: 234, 
-      percentage: 45,
-      cities: [
-        { city: 'New York', clicks: 120 },
-        { city: 'Los Angeles', clicks: 64 },
-        { city: 'Chicago', clicks: 50 }
-      ]
-    },
-    { 
-      country: 'United Kingdom', 
-      clicks: 156, 
-      percentage: 30,
-      cities: [
-        { city: 'London', clicks: 82 },
-        { city: 'Manchester', clicks: 42 },
-        { city: 'Birmingham', clicks: 32 }
-      ]
-    },
-    { 
-      country: 'Canada', 
-      clicks: 78, 
-      percentage: 15,
-      cities: [
-        { city: 'Toronto', clicks: 35 },
-        { city: 'Vancouver', clicks: 25 },
-        { city: 'Montreal', clicks: 18 }
-      ]
-    },
-    { 
-      country: 'Australia', 
-      clicks: 52, 
-      percentage: 10,
-      cities: [
-        { city: 'Sydney', clicks: 20 },
-        { city: 'Melbourne', clicks: 18 },
-        { city: 'Brisbane', clicks: 14 }
-      ]
-    }
-  ];
+  const [countryData, setCountryData] = useState<CountryData[]>([]);
 
   const [activeCountry, setActiveCountry] = useState<CountryData | null>(null);
   const getCityBarWidth = (country: CountryData | null, clicks: number) => {
@@ -337,41 +276,63 @@ const Analytics = () => {
     return `${Math.min(100, pct)}%`;
   };
 
-  const referrerData = [
-    { source: 'Direct', clicks: 180 },
-    { source: 'Twitter', clicks: 120 },
-    { source: 'Facebook', clicks: 95 },
-    { source: 'LinkedIn', clicks: 60 },
-    { source: 'Other', clicks: 65 }
-  ];
+  const [referrerData, setReferrerData] = useState<any[]>([]);
+
+  useEffect(() => {
+    const loadAnalytics = async () => {
+      try {
+        const res = await fetch('/data/analytics.json');
+        const data = await res.json();
+        setDeviceData(data.deviceBreakdown || []);
+        setReferrerData(data.referrers || []);
+        setCountryData(data.countries || []);
+      } catch (e) {
+        // noop
+      }
+    };
+    loadAnalytics();
+  }, []);
+
+  useEffect(() => {
+    const loadStats = async () => {
+      try {
+        const res = await fetch('/data/analytics.json');
+        const data = await res.json();
+        setStatsMeta(data.stats || null);
+      } catch (e) {
+        // noop
+      }
+    };
+    loadStats();
+  }, []);
 
   const stats = [
     { 
       label: 'Total Clicks', 
       value: analyticsData.totalClicks.toLocaleString(), 
-      change: '+12%', 
-      trend: 'up',
+      change: statsMeta?.changes?.totalClicks ?? '+0%', 
+      trend: statsMeta?.changes?.totalClicksTrend ?? 'up',
       icon: <BarChart3 className="w-6 h-6" />
     },
     { 
       label: 'Unique Visitors', 
       value: analyticsData.uniqueVisitors.toLocaleString(), 
-      change: '+8%', 
-      trend: 'up',
+      change: statsMeta?.changes?.uniqueVisitors ?? '+0%', 
+      trend: statsMeta?.changes?.uniqueVisitorsTrend ?? 'up',
       icon: <Users className="w-6 h-6" />
     },
     { 
       label: 'Click Rate', 
-      value: analyticsData.clickRate, 
-      change: '-2%', 
-      trend: 'down',
+      value: statsMeta?.clickRate ?? analyticsData.clickRate, 
+      change: statsMeta?.changes?.clickRate ?? '+0%', 
+      trend: statsMeta?.changes?.clickRateTrend ?? 'up',
       icon: <TrendingUp className="w-6 h-6" />
     },
     { 
       label: 'Avg. Daily Clicks', 
       value: analyticsData.avgDailyClicks.toLocaleString(), 
-      change: '+15%', 
-      trend: 'up',
+      change: statsMeta?.changes?.avgDailyClicks ?? '+0%', 
+      trend: statsMeta?.changes?.avgDailyClicksTrend ?? 'up',
       icon: <Clock className="w-6 h-6" />
     }
   ];
@@ -498,7 +459,7 @@ const Analytics = () => {
                     />
                   )}
                   {selectedUrl === 'all' ? (
-                    <Line type="monotone" dataKey="clicks" stroke="#3B82F6" strokeWidth={3} dot={{ fill: '#3B82F6' }} connectNulls={true} />
+                    <Line type="monotone" dataKey="clicks" stroke="#3B82F6" strokeWidth={3} dot={false} connectNulls={true} />
                   ) : (
                     <>
                       {/* Inactive background shading */}
@@ -657,8 +618,8 @@ const Analytics = () => {
                 {isAuthenticated ? 'Your Top URLs' : 'Top Performing URLs'}
               </h3>
             </div>
-            <div className="space-y-4 max-h-80 overflow-y-auto pr-2">
-              {userUrls.slice(0, 3).map((url, index) => (
+                <div className="space-y-4 max-h-80 overflow-y-auto pr-2">
+                  {userUrls.slice(0, 3).map((url, index) => (
                 <div key={index} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
                   <div>
                     <p className="font-medium text-gray-900 dark:text-white">{url.shortCode}</p>
@@ -675,9 +636,15 @@ const Analytics = () => {
                         Protected
                       </span>
                     )}
-                    <div className="text-green-600 text-sm font-medium">
-                      +{getStableChangePercent(url.shortCode, url.clicks)}%
-                    </div>
+                        {(() => {
+                          const pct = getChangePercentForUrl(url.id);
+                          const positive = pct >= 0;
+                          return (
+                            <div className={`${positive ? 'text-green-600' : 'text-red-600'} text-sm font-medium`}>
+                              {positive ? '+' : ''}{pct}%
+                            </div>
+                          );
+                        })()}
                   </div>
                 </div>
               ))}

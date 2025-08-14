@@ -10,7 +10,7 @@ import { QRCodeDisplay } from '@/components/QRCodeDisplay';
 import { AnalyticsCard } from '@/components/AnalyticsCard';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
-import { generateShortUrl } from '@/lib/utils';
+import { generateShortUrl, generateDeterministicCodeFromString } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
@@ -92,8 +92,8 @@ export default function HomePage() {
         return d.toISOString();
       };
 
-      // For demo purposes, use a specific short code if no custom alias
-      const shortCode = customAlias || (url.includes('example.com') ? 'fr7b2t' : Math.random().toString(36).substring(2, 8));
+      // Deterministic code if no custom alias
+      const shortCode = customAlias || (url.includes('example.com') ? 'fr7b2t' : generateDeterministicCodeFromString(url));
       const newShortenedUrl: ShortenedUrl = {
         originalUrl: url,
         shortCode,

@@ -1,0 +1,53 @@
+[
+  {
+    "id": "1",
+    "originalUrl": "https://example.com/very-long-url-that-needs-shortening",
+    "shortCode": "fr7b2t",
+    "clicks": 1247,
+    "createdAt": "2024-01-15T10:30:00Z",
+    "lastClicked": "2024-01-20T14:22:00Z",
+    "isPrivate": false,
+    "hasPassword": false,
+    "urlName": "My Important Link",
+    "enabled": true,
+    "statusPeriods": [
+      { "start": "2024-01-15" }
+    ]
+  },
+  {
+    "id": "2",
+    "originalUrl": "https://github.com/username/repository-name",
+    "shortCode": "github1",
+    "clicks": 89,
+    "createdAt": "2024-01-10T09:15:00Z",
+    "lastClicked": "2024-01-19T16:45:00Z",
+    "expiredAt": "2024-01-19T16:45:00Z",
+    "isPrivate": true,
+    "hasPassword": false,
+    "urlName": "GitHub Repository",
+    "enabled": true,
+    "statusPeriods": [
+      { "start": "2024-01-10", "end": "2024-01-13" },
+      { "start": "2024-01-16", "end": "2024-01-19" }
+    ]
+  },
+  {
+    "id": "3",
+    "originalUrl": "https://docs.google.com/document/d/1234567890/edit",
+    "shortCode": "docs42",
+    "clicks": 432,
+    "createdAt": "2024-01-08T14:20:00Z",
+    "lastClicked": "2024-01-18T11:30:00Z",
+    "isPrivate": false,
+    "hasPassword": true,
+    "urlName": "Google Docs Link",
+    "password": "secret123",
+    "enabled": true,
+    "statusPeriods": [
+      { "start": "2024-01-08", "end": "2024-01-12" },
+      { "start": "2024-01-14" }
+    ]
+  }
+]
+
+

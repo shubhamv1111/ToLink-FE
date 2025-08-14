@@ -13,7 +13,7 @@ import { UrlCard } from '@/components/dashboard/UrlCard';
 import { CreateLinkModal } from '@/components/dashboard/CreateLinkModal';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
-import { generateShortUrl } from '@/lib/utils';
+import { generateShortUrl, generateDeterministicCodeFromString } from '@/lib/utils';
 
 interface UrlData {
   id: string;
@@ -40,49 +40,37 @@ const Dashboard = () => {
   const { user, isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
 
-  // Mock data with privacy and password settings
-  const [urls, setUrls] = useState<UrlData[]>([
-    {
-      id: '1',
-      originalUrl: 'https://example.com/very-long-url-that-needs-shortening',
-      shortCode: 'fr7b2t',
-      shortUrl: generateShortUrl('fr7b2t'),
-      clicks: 1247,
-      createdAt: '2024-01-15T10:30:00Z',
-      lastClicked: '2024-01-20T14:22:00Z',
-      isPrivate: false,
-      hasPassword: false,
-      urlName: 'My Important Link',
-      enabled: true
-    },
-    {
-      id: '2',
-      originalUrl: 'https://github.com/username/repository-name',
-      shortCode: 'github1',
-      shortUrl: generateShortUrl('github1'),
-      clicks: 89,
-      createdAt: '2024-01-10T09:15:00Z',
-      lastClicked: '2024-01-19T16:45:00Z',
-      isPrivate: true,
-      hasPassword: false,
-      urlName: 'GitHub Repository',
-      enabled: true
-    },
-    {
-      id: '3',
-      originalUrl: 'https://docs.google.com/document/d/1234567890/edit',
-      shortCode: 'docs42',
-      shortUrl: generateShortUrl('docs42'),
-      clicks: 432,
-      createdAt: '2024-01-08T14:20:00Z',
-      lastClicked: '2024-01-18T11:30:00Z',
-      isPrivate: false,
-      hasPassword: true,
-      urlName: 'Google Docs Link',
-      password: 'secret123',
-      enabled: true
-    }
-  ]);
+  const [urls, setUrls] = useState<UrlData[]>([]);
+
+  useEffect(() => {
+    // Load initial data from json
+    const load = async () => {
+      try {
+        const res = await fetch('/data/urls.json');
+        const data = await res.json();
+        const mapped: UrlData[] = (data || []).map((u: any) => ({
+          id: String(u.id),
+          originalUrl: u.originalUrl,
+          shortCode: u.shortCode,
+          shortUrl: generateShortUrl(u.shortCode),
+          clicks: Number(u.clicks || 0),
+          createdAt: u.createdAt,
+          lastClicked: u.lastClicked,
+          isPrivate: !!u.isPrivate,
+          hasPassword: !!u.hasPassword,
+          urlName: u.urlName,
+          password: u.password,
+          activationAt: u.activationAt,
+          expiresAt: u.expiredAt || u.expiresAt,
+          enabled: u.enabled !== false
+        }));
+        setUrls(mapped);
+      } catch (e) {
+        // noop
+      }
+    };
+    load();
+  }, []);
 
   // Check authentication
   useEffect(() => {
@@ -193,7 +181,7 @@ const Dashboard = () => {
   };
 
   const createLink = async (linkData: any) => {
-    const shortCode = linkData.customAlias || Math.random().toString(36).substring(2, 8);
+    const shortCode = linkData.customAlias || generateDeterministicCodeFromString(linkData.originalUrl);
     const newUrl: UrlData = {
       id: Date.now().toString(),
       originalUrl: linkData.originalUrl,
