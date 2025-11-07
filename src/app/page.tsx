@@ -49,6 +49,8 @@ export default function HomePage() {
   const [enableExpiration, setEnableExpiration] = useState(false);
   const [expirationDate, setExpirationDate] = useState<Date | undefined>(undefined);
   const [expirationTime, setExpirationTime] = useState('');
+  const [aliasAvailable, setAliasAvailable] = useState<boolean | null>(null);
+  const [aliasChecking, setAliasChecking] = useState(false);
 
   const isValidUrl = (string: string) => {
     try {
@@ -58,6 +60,30 @@ export default function HomePage() {
       return false;
     }
   };
+
+  // Check custom alias availability with debounce
+  useEffect(() => {
+    if (!customAlias) {
+      setAliasAvailable(null);
+      return;
+    }
+
+    const checkAvailability = async () => {
+      setAliasChecking(true);
+      try {
+        const result = await linksApi.checkAliasAvailability(customAlias);
+        setAliasAvailable(result.available);
+      } catch (error) {
+        setAliasAvailable(null);
+      } finally {
+        setAliasChecking(false);
+      }
+    };
+
+    // Debounce the check
+    const timer = setTimeout(checkAvailability, 500);
+    return () => clearTimeout(timer);
+  }, [customAlias]);
 
   const shortenUrl = async () => {
     if (!url) {
@@ -267,14 +293,33 @@ export default function HomePage() {
                   <label htmlFor="alias" className="text-sm font-medium text-gray-700 dark:text-gray-300">
                     Custom alias (optional)
                   </label>
-                  <Input
-                    id="alias"
-                    type="text"
-                    placeholder="my-custom-link"
-                    value={customAlias}
-                    onChange={(e) => setCustomAlias(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
-                    className="h-12"
-                  />
+                  <div className="relative">
+                    <Input
+                      id="alias"
+                      type="text"
+                      placeholder="my-custom-link"
+                      value={customAlias}
+                      onChange={(e) => setCustomAlias(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
+                      className="h-12 pr-10"
+                    />
+                    {customAlias && (
+                      <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                        {aliasChecking ? (
+                          <div className="animate-spin rounded-full h-4 w-4 border-2 border-gray-400 border-t-transparent" />
+                        ) : aliasAvailable === true ? (
+                          <CheckCircle className="w-4 h-4 text-green-500" />
+                        ) : aliasAvailable === false ? (
+                          <X className="w-4 h-4 text-red-500" />
+                        ) : null}
+                      </div>
+                    )}
+                  </div>
+                  {customAlias && aliasAvailable === false && (
+                    <p className="text-xs text-red-500">This alias is already taken</p>
+                  )}
+                  {customAlias && aliasAvailable === true && (
+                    <p className="text-xs text-green-500">This alias is available</p>
+                  )}
                 </div>
               </div>
             </div>
