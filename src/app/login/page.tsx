@@ -39,7 +39,7 @@ export default function Login() {
     } else {
       toast({
         title: "Login Failed",
-        description: "Invalid email or password. Try demo@example.com / password",
+        description: "Invalid email or password. Please try again.",
         variant: "destructive",
       });
     }
@@ -164,12 +164,6 @@ export default function Login() {
               </svg>
               Continue with Google
             </Button>
-          </div>
-
-          <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-            <p className="text-xs text-blue-600 dark:text-blue-400 text-center">
-              <strong>Demo Login:</strong> Use email "demo@example.com" and password "password"
-            </p>
           </div>
 
           <p className="text-center mt-6 text-sm text-gray-600 dark:text-gray-300">

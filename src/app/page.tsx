@@ -10,11 +10,11 @@ import { QRCodeDisplay } from '@/components/QRCodeDisplay';
 import { AnalyticsCard } from '@/components/AnalyticsCard';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
-import { generateShortUrl, generateDeterministicCodeFromString } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { Switch } from '@/components/ui/switch';
+import { linksApi } from '@/lib/api';
 
 interface ShortenedUrl {
   originalUrl: string;
@@ -81,9 +81,6 @@ export default function HomePage() {
     setIsLoading(true);
     
     try {
-      // Simulate API call for demo purposes
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
       const buildIsoFromDateTime = (dateObj?: Date, timeString?: string): string | undefined => {
         if (!dateObj) return undefined;
         const d = new Date(dateObj);
@@ -92,26 +89,27 @@ export default function HomePage() {
         return d.toISOString();
       };
 
-      // Deterministic code if no custom alias
-      const shortCode = customAlias || (url.includes('example.com') ? 'fr7b2t' : generateDeterministicCodeFromString(url));
-      const newShortenedUrl: ShortenedUrl = {
+      const response = await linksApi.create({
         originalUrl: url,
-        shortCode,
-        shortUrl: generateShortUrl(shortCode),
         customAlias: customAlias || undefined,
         urlName: urlName || undefined,
-        createdAt: new Date().toISOString(),
-        clickCount: 0,
-        isPrivate: !!isAuthenticated,
-        hasPassword: false,
         activationAt: enableActivation ? buildIsoFromDateTime(activationDate, activationTime) : undefined,
-        expiresAt: enableExpiration ? buildIsoFromDateTime(expirationDate, expirationTime) : undefined
+        expiresAt: enableExpiration ? buildIsoFromDateTime(expirationDate, expirationTime) : undefined,
+      });
+
+      const newShortenedUrl: ShortenedUrl = {
+        originalUrl: response.originalUrl,
+        shortCode: response.shortCode,
+        shortUrl: response.shortUrl,
+        customAlias: customAlias || undefined,
+        urlName: response.urlName,
+        createdAt: response.createdAt,
+        clickCount: response.clicks,
+        isPrivate: response.isPrivate,
+        hasPassword: response.hasPassword,
+        activationAt: response.activationAt,
+        expiresAt: response.expiresAt,
       };
-      
-      // Store in localStorage for access from shortCode page
-      const existingUrls = JSON.parse(localStorage.getItem('shortenedUrls') || '[]');
-      existingUrls.push(newShortenedUrl);
-      localStorage.setItem('shortenedUrls', JSON.stringify(existingUrls));
       
       setShortenedUrl(newShortenedUrl);
       
@@ -119,10 +117,10 @@ export default function HomePage() {
         title: "Success!",
         description: "Your URL has been shortened successfully",
       });
-    } catch (error) {
+    } catch (error: any) {
       toast({
         title: "Error",
-        description: "Failed to shorten URL. Please try again.",
+        description: error?.message || "Failed to shorten URL. Please try again.",
         variant: "destructive",
       });
     } finally {

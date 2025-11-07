@@ -1,11 +1,13 @@
 'use client'
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { authApi, User as ApiUser } from '@/lib/api';
 
 interface User {
   id: string;
   name: string;
   email: string;
+  role?: string;
   profilePhoto?: string;
   createdAt: string;
 }
@@ -16,7 +18,7 @@ interface AuthContextType {
   isLoading: boolean;
   login: (email: string, password: string) => Promise<boolean>;
   signup: (name: string, email: string, password: string) => Promise<boolean>;
-  logout: () => void;
+  logout: () => Promise<void>;
   updateProfile: (data: Partial<User>) => Promise<boolean>;
   updateProfilePhoto: (photoUrl: string) => Promise<boolean>;
 }
@@ -37,38 +39,39 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Check if user is already logged in on app start
   useEffect(() => {
-    const savedUser = localStorage.getItem('tolink_user');
-    if (savedUser) {
+    const checkAuth = async () => {
       try {
-        setUser(JSON.parse(savedUser));
+        const userData = await authApi.getMe();
+        setUser({
+          id: userData.id,
+          name: userData.name,
+          email: userData.email,
+          role: userData.role,
+          createdAt: userData.createdAt,
+        });
       } catch (error) {
-        localStorage.removeItem('tolink_user');
+        // Not authenticated or session expired
+        setUser(null);
+      } finally {
+        setIsLoading(false);
       }
-    }
-    setIsLoading(false);
+    };
+
+    checkAuth();
   }, []);
 
   const login = async (email: string, password: string): Promise<boolean> => {
     setIsLoading(true);
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Demo login - in real app, this would be API call
-      if (email === 'demo@example.com' && password === 'password') {
-        const userData: User = {
-          id: '1',
-          name: 'Demo User',
-          email: 'demo@example.com',
-          profilePhoto: '/placeholder.svg',
-          createdAt: new Date().toISOString()
-        };
-        setUser(userData);
-        localStorage.setItem('tolink_user', JSON.stringify(userData));
-        return true;
-      } else {
-        throw new Error('Invalid credentials');
-      }
+      const userData = await authApi.login(email, password);
+      setUser({
+        id: userData.id,
+        name: userData.name,
+        email: userData.email,
+        role: userData.role,
+        createdAt: userData.createdAt,
+      });
+      return true;
     } catch (error) {
       console.error('Login error:', error);
       return false;
@@ -80,18 +83,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signup = async (name: string, email: string, password: string): Promise<boolean> => {
     setIsLoading(true);
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Demo signup - in real app, this would be API call
-      const userData: User = {
-        id: Date.now().toString(),
-        name,
-        email,
-        createdAt: new Date().toISOString()
-      };
-      setUser(userData);
-      localStorage.setItem('tolink_user', JSON.stringify(userData));
+      const userData = await authApi.signup(name, email, password);
+      setUser({
+        id: userData.id,
+        name: userData.name,
+        email: userData.email,
+        role: userData.role,
+        createdAt: userData.createdAt,
+      });
       return true;
     } catch (error) {
       console.error('Signup error:', error);
@@ -101,21 +100,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const logout = () => {
-    setUser(null);
-    localStorage.removeItem('tolink_user');
+  const logout = async () => {
+    try {
+      await authApi.logout();
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      setUser(null);
+    }
   };
 
   const updateProfile = async (data: Partial<User>): Promise<boolean> => {
     if (!user) return false;
     
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      const updatedUser = { ...user, ...data };
-      setUser(updatedUser);
-      localStorage.setItem('tolink_user', JSON.stringify(updatedUser));
+      const userData = await authApi.updateProfile({
+        name: data.name,
+        email: data.email,
+      });
+      setUser({
+        ...user,
+        id: userData.id,
+        name: userData.name,
+        email: userData.email,
+        role: userData.role,
+        createdAt: userData.createdAt,
+      });
       return true;
     } catch (error) {
       console.error('Profile update error:', error);
