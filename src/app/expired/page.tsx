@@ -1,6 +1,6 @@
 'use client'
 
-import React from 'react'
+import React, { Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { Navbar } from '@/components/Navbar'
 import { Footer } from '@/components/Footer'
@@ -8,7 +8,7 @@ import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { CalendarX2, Link2 } from 'lucide-react'
 
-export default function ExpiredPage() {
+function ExpiredContent() {
   const search = useSearchParams()
   const router = useRouter()
   const code = search.get('code') || ''
@@ -47,6 +47,14 @@ export default function ExpiredPage() {
       </main>
       <Footer />
     </div>
+  )
+}
+
+export default function ExpiredPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
+      <ExpiredContent />
+    </Suspense>
   )
 }
 

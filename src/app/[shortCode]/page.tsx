@@ -205,7 +205,7 @@ export default function ShortCodeRedirect() {
         <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex items-center justify-center p-4">
           <Card className="p-8 backdrop-blur-sm bg-white/80 dark:bg-gray-800/80 shadow-xl border-0 text-center max-w-md">
             <Hourglass className="w-16 h-16 text-blue-600 mx-auto mb-4" />
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">This link is not active yet</n>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">This link is not active yet</h1>
             <p className="text-gray-600 dark:text-gray-300 mb-2">The link has been scheduled to activate soon.</p>
             {activateAt && (
               <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">Scheduled activation: {activateAt.toLocaleString()}</p>
