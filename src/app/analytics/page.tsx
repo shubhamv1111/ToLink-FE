@@ -10,7 +10,7 @@ import { Footer } from '@/components/Footer';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell, ReferenceArea, ReferenceLine } from 'recharts';
 import { useAuth } from '@/contexts/AuthContext';
 import Link from 'next/link';
-import { generateShortUrl } from '@/lib/utils';
+import { analyticsApi, linksApi } from '@/lib/api';
 
 interface UrlData {
   id: string;
@@ -36,46 +36,49 @@ const Analytics = () => {
   const [statsMeta, setStatsMeta] = useState<any | null>(null);
 
   const [userUrls, setUserUrls] = useState<UrlData[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const load = async () => {
+    const loadData = async () => {
+      if (!isAuthenticated) return;
+      
       try {
-        const res = await fetch('/data/urls.json');
-        const data = await res.json();
-        const mapped: UrlData[] = (data || []).map((u: any) => ({
-          id: String(u.id),
-          originalUrl: u.originalUrl,
-          shortCode: u.shortCode,
-          shortUrl: generateShortUrl(u.shortCode),
-          clicks: Number(u.clicks || 0),
-          createdAt: u.createdAt,
-          lastClicked: u.lastClicked,
-          expiredAt: u.expiredAt,
-          statusPeriods: u.statusPeriods,
-          isPrivate: !!u.isPrivate,
-          hasPassword: !!u.hasPassword
+        setIsLoading(true);
+        
+        // Load user links
+        const linksResponse = await linksApi.getList({ limit: 100 });
+        const mapped: UrlData[] = linksResponse.items.map((link) => ({
+          id: link.id,
+          originalUrl: link.originalUrl,
+          shortCode: link.shortCode,
+          shortUrl: link.shortUrl,
+          clicks: link.clicks,
+          createdAt: link.createdAt,
+          lastClicked: link.lastClicked,
+          expiredAt: link.expiresAt,
+          statusPeriods: [],
+          isPrivate: link.isPrivate,
+          hasPassword: link.hasPassword,
         }));
         setUserUrls(mapped);
-      } catch (e) {
-        // noop
+        
+        // Load clicks per URL data
+        const range = selectedPeriod === '7days' ? '7d' : selectedPeriod === '30days' ? '30d' : '90d';
+        const clicksData = await analyticsApi.getClicksPerUrl(range);
+        setClicksPerUrl(clicksData.perUrl || {});
+        
+        // Load analytics metadata
+        const overview = await analyticsApi.getOverview({ scope: 'user', range });
+        setStatsMeta(overview);
+      } catch (error) {
+        console.error('Failed to load analytics:', error);
+      } finally {
+        setIsLoading(false);
       }
     };
-    load();
-  }, []);
-
-  // Load clicks per URL from JSON
-  useEffect(() => {
-    const loadClicks = async () => {
-      try {
-        const res = await fetch('/data/clicks.json');
-        const data = await res.json();
-        setClicksPerUrl(data.perUrl || {});
-      } catch (e) {
-        // noop
-      }
-    };
-    loadClicks();
-  }, []);
+    
+    loadData();
+  }, [isAuthenticated, selectedPeriod]);
 
   const getSeriesForUrl = (urlId: string): ClickPoint[] => {
     const series = clicksPerUrl[urlId] || [];
