@@ -216,3 +216,31 @@ export const analyticsApi = {
   },
 };
 
+// QR Code API
+export const qrApi = {
+  generate: (shortCode: string, options?: {
+    size?: number;
+    format?: 'png' | 'svg';
+    errorCorrectionLevel?: 'L' | 'M' | 'Q' | 'H';
+    margin?: number;
+    darkColor?: string;
+    lightColor?: string;
+  }) => {
+    const queryParams = new URLSearchParams();
+    if (options?.size) queryParams.append('size', options.size.toString());
+    if (options?.format) queryParams.append('format', options.format);
+    if (options?.errorCorrectionLevel) queryParams.append('errorCorrectionLevel', options.errorCorrectionLevel);
+    if (options?.margin !== undefined) queryParams.append('margin', options.margin.toString());
+    if (options?.darkColor) queryParams.append('darkColor', options.darkColor);
+    if (options?.lightColor) queryParams.append('lightColor', options.lightColor);
+    
+    const query = queryParams.toString();
+    return api.get<{ qrCode: string; shortUrl: string }>(`/qr/${shortCode}${query ? `?${query}` : ''}`);
+  },
+  
+  getDownloadUrl: (shortCode: string, size?: number) => {
+    const baseUrl = API_BASE_URL + API_VERSION;
+    return `${baseUrl}/qr/${shortCode}/download${size ? `?size=${size}` : ''}`;
+  },
+};
+
