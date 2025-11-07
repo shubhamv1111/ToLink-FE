@@ -281,33 +281,14 @@ const Analytics = () => {
 
   const [referrerData, setReferrerData] = useState<any[]>([]);
 
+  // Update device, referrer, and country data when statsMeta changes
   useEffect(() => {
-    const loadAnalytics = async () => {
-      try {
-        const res = await fetch('/data/analytics.json');
-        const data = await res.json();
-        setDeviceData(data.deviceBreakdown || []);
-        setReferrerData(data.referrers || []);
-        setCountryData(data.countries || []);
-      } catch (e) {
-        // noop
-      }
-    };
-    loadAnalytics();
-  }, []);
-
-  useEffect(() => {
-    const loadStats = async () => {
-      try {
-        const res = await fetch('/data/analytics.json');
-        const data = await res.json();
-        setStatsMeta(data.stats || null);
-      } catch (e) {
-        // noop
-      }
-    };
-    loadStats();
-  }, []);
+    if (statsMeta) {
+      setDeviceData(statsMeta.deviceBreakdown || []);
+      setReferrerData(statsMeta.referrers || []);
+      setCountryData(statsMeta.countries || []);
+    }
+  }, [statsMeta]);
 
   const stats = [
     { 
