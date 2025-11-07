@@ -336,7 +336,7 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
       const linkData = {
         urlName,
         originalUrl: url,
-        customAlias,
+        customAlias: customAlias || undefined, // Send undefined if empty
         // Auto-assign privacy: if logged in -> private, else public
         isPrivate,
         hasPassword,
@@ -345,6 +345,7 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
         expiresAt: enableExpiration ? buildIsoFromDateTime(expirationDate, expirationTime) : undefined
       };
       await onCreate(linkData);
+      // Only close and reset on success
       onClose();
       setUrl('');
       setCustomAlias('');
@@ -358,12 +359,16 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
       setEnableExpiration(false);
       setExpirationDate(undefined);
       setExpirationTime('');
-    } catch (error) {
+    } catch (error: any) {
+      // Show error but keep modal open so user can fix the issue
+      const errorMsg = error?.message || (editMode ? "Failed to update link" : "Failed to create link");
       toast({
         title: "Error",
-        description: editMode ? "Failed to update link" : "Failed to create link",
+        description: errorMsg,
         variant: "destructive",
+        duration: 5000, // Show error for longer
       });
+      // Don't close modal, let user fix the issue
     } finally {
       setIsLoading(false);
     }
