@@ -81,9 +81,13 @@ export interface User {
   name: string;
   email: string;
   role: string;
+  profilePhoto?: string;
   isEmailVerified: boolean;
   isActive: boolean;
+  isGoogleAccount: boolean;
+  hasPassword: boolean;
   createdAt: string;
+  lastLogin?: string;
 }
 
 export interface Link {

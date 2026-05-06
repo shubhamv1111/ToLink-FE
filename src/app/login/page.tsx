@@ -27,19 +27,22 @@ export default function Login() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    const success = await login(email, password);
-    
-    if (success) {
+
+    try {
+      await login(email, password);
       toast({
         title: "Login Successful",
         description: "Welcome back to ToLink!",
       });
       router.push('/dashboard');
-    } else {
+    } catch (error: any) {
+      const msg: string = error?.message || '';
+      const isGoogleAccount = msg.toLowerCase().includes('google sign-in');
       toast({
-        title: "Login Failed",
-        description: "Invalid email or password. Please try again.",
+        title: isGoogleAccount ? "Use Google Sign-In" : "Login Failed",
+        description: isGoogleAccount
+          ? "This account uses Google Sign-In. Please continue with Google or set a password first."
+          : "Invalid email or password. Please try again.",
         variant: "destructive",
       });
     }

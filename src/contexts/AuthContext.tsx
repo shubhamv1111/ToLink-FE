@@ -9,6 +9,8 @@ interface User {
   email: string;
   role?: string;
   profilePhoto?: string;
+  isGoogleAccount?: boolean;
+  hasPassword?: boolean;
   createdAt: string;
 }
 
@@ -47,6 +49,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           name: userData.name,
           email: userData.email,
           role: userData.role,
+          profilePhoto: userData.profilePhoto,
+          isGoogleAccount: userData.isGoogleAccount,
+          hasPassword: userData.hasPassword,
           createdAt: userData.createdAt,
         });
       } catch (error) {
@@ -69,12 +74,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         name: userData.name,
         email: userData.email,
         role: userData.role,
+        profilePhoto: userData.profilePhoto,
+        isGoogleAccount: userData.isGoogleAccount,
+        hasPassword: userData.hasPassword,
         createdAt: userData.createdAt,
       });
       return true;
     } catch (error) {
-      console.error('Login error:', error);
-      return false;
+      throw error;
     } finally {
       setIsLoading(false);
     }
@@ -89,12 +96,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         name: userData.name,
         email: userData.email,
         role: userData.role,
+        profilePhoto: userData.profilePhoto,
+        isGoogleAccount: userData.isGoogleAccount,
+        hasPassword: userData.hasPassword,
         createdAt: userData.createdAt,
       });
       return true;
     } catch (error) {
-      console.error('Signup error:', error);
-      return false;
+      throw error;
     } finally {
       setIsLoading(false);
     }

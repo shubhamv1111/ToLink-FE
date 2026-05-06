@@ -49,18 +49,21 @@ export default function Signup() {
       return;
     }
 
-    const success = await signup(name, email, password);
-    
-    if (success) {
+    try {
+      await signup(name, email, password);
       toast({
         title: "Account Created",
         description: "Welcome to ToLink! Your account has been created successfully.",
       });
       router.push('/dashboard');
-    } else {
+    } catch (error: any) {
+      const msg: string = error?.message || '';
+      const isConflict = msg.toLowerCase().includes('already exists');
       toast({
-        title: "Signup Failed",
-        description: "Failed to create account. Please try again.",
+        title: isConflict ? "Email Already Registered" : "Signup Failed",
+        description: isConflict
+          ? "An account with this email already exists. Try signing in instead."
+          : (msg || "Failed to create account. Please try again."),
         variant: "destructive",
       });
     }
