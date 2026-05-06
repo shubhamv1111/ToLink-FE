@@ -20,25 +20,40 @@ export default function PasswordProtected() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    
-    // Simulate password verification
-    setTimeout(() => {
-      if (password === 'demo123') {
+
+    try {
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+      const response = await fetch(`${API_URL}/v1/links/${shortCode}/access`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ password }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.redirectUrl) {
         toast({
           title: "Access Granted",
           description: "Redirecting to the original URL...",
         });
-        // Redirect to original URL would happen here
-        window.open('https://example.com', '_blank');
+        window.location.href = `${API_URL}${data.redirectUrl}`;
       } else {
         toast({
           title: "Incorrect Password",
-          description: "Please enter the correct password to access this link",
+          description: data.message || "Please enter the correct password to access this link",
           variant: "destructive",
         });
       }
+    } catch {
+      toast({
+        title: "Error",
+        description: "Failed to verify password. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
       setIsLoading(false);
-    }, 1000);
+    }
   };
 
   return (
@@ -94,11 +109,6 @@ export default function PasswordProtected() {
             </Button>
           </form>
 
-          <div className="mt-6 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-            <p className="text-xs text-gray-600 dark:text-gray-300">
-              <strong>For demo purposes:</strong> Use password "demo123" to access this protected link.
-            </p>
-          </div>
         </Card>
       </div>
     </div>

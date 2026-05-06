@@ -40,9 +40,9 @@ export default function ShortCodeRedirect() {
     const fetchUrlData = async () => {
       try {
         const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
-        const response = await fetch(`${API_URL}/v1/links/public/${shortCode}`, {
+        const response = await fetch(`${API_URL}/v1/links/${shortCode}/public-meta`, {
           method: 'GET',
-          credentials: 'include', // Include cookies
+          credentials: 'include',
         });
         
         if (!response.ok) {
@@ -145,27 +145,24 @@ export default function ShortCodeRedirect() {
     
     try {
       const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
-      const response = await fetch(`${API_URL}/v1/links/verify-access`, {
+      const response = await fetch(`${API_URL}/v1/links/${shortCode}/access`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         credentials: 'include',
-        body: JSON.stringify({
-          shortCode: shortCode,
-          password: password,
-        }),
+        body: JSON.stringify({ password }),
       });
 
       const data = await response.json();
-      
-      if (response.ok && data.accessGranted && urlData) {
+
+      if (response.ok && data.redirectUrl) {
         toast({
           title: "Access Granted",
           description: "Redirecting to the original URL...",
         });
-        // Redirect via backend to track click
-        window.location.href = `${API_URL}/v1/r/${shortCode}`;
+        // Use the redirectUrl returned by the backend (includes redirect token)
+        window.location.href = `${API_URL}${data.redirectUrl}`;
       } else {
         toast({
           title: "Incorrect Password",
@@ -304,11 +301,6 @@ export default function ShortCodeRedirect() {
             </Button>
           </form>
           
-          <div className="mt-4 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-            <p className="text-xs text-gray-600 dark:text-gray-300">
-              <strong>For demo purposes:</strong> Use password "demo123"
-            </p>
-          </div>
         </Card>
       </div>
     );

@@ -156,6 +156,7 @@ const Dashboard = () => {
       const updatePayload: any = {};
       if (updatedData.urlName !== undefined) updatePayload.urlName = updatedData.urlName;
       if (updatedData.originalUrl !== undefined) updatePayload.originalUrl = updatedData.originalUrl;
+      if (updatedData.customAlias !== undefined) updatePayload.customAlias = updatedData.customAlias;
       if (updatedData.isPrivate !== undefined) updatePayload.isPrivate = updatedData.isPrivate;
       if (updatedData.enabled !== undefined) updatePayload.enabled = updatedData.enabled;
       if (updatedData.activationAt !== undefined) updatePayload.activationAt = updatedData.activationAt;
