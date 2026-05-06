@@ -67,10 +67,8 @@ export default function Signup() {
   };
 
   const handleGoogleSignup = () => {
-    toast({
-      title: "Google Signup",
-      description: "Google OAuth integration would happen here",
-    });
+    const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+    window.location.href = `${apiBase}/v1/auth/google`;
   };
 
   if (isLoading || isAuthenticated) {
