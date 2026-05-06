@@ -9,7 +9,6 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { TimePicker } from '@/components/ui/time-picker';
 import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '@/contexts/AuthContext';
 
 interface CreateLinkModalProps {
   isOpen: boolean;
@@ -19,7 +18,6 @@ interface CreateLinkModalProps {
     urlName?: string;
     originalUrl?: string;
     customAlias?: string;
-    isPrivate?: boolean;
     hasPassword?: boolean;
     password?: string;
     activationAt?: string;
@@ -32,7 +30,6 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
   const [url, setUrl] = useState(initialValues?.originalUrl || '');
   const [customAlias, setCustomAlias] = useState(initialValues?.customAlias || '');
   const [urlName, setUrlName] = useState(initialValues?.urlName || '');
-  const [isPrivate, setIsPrivate] = useState(initialValues?.isPrivate || false);
   const [hasPassword, setHasPassword] = useState(initialValues?.hasPassword || false);
   const [password, setPassword] = useState(initialValues?.password || '');
   const [isLoading, setIsLoading] = useState(false);
@@ -43,7 +40,6 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
   const [expirationDate, setExpirationDate] = useState<Date | undefined>(undefined);
   const [expirationTime, setExpirationTime] = useState<string>('');
   const { toast } = useToast();
-  const { isAuthenticated } = useAuth();
 
   const initializedRef = useRef(false);
   useEffect(() => {
@@ -56,7 +52,6 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
       setUrl(initialValues.originalUrl || '');
       setCustomAlias(initialValues.customAlias || '');
       setUrlName(initialValues.urlName || '');
-      setIsPrivate(initialValues.isPrivate || false);
       setHasPassword(initialValues.hasPassword || false);
       setPassword(initialValues.password || '');
       // Setup activation/expiration defaults from initial values
@@ -81,8 +76,6 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
         setExpirationTime('');
       }
     } else {
-      // For new links: auto-set privacy based on auth
-      setIsPrivate(!!isAuthenticated);
       setHasPassword(false);
       setPassword('');
       setEnableActivation(false);
@@ -93,7 +86,7 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
       setExpirationTime('');
     }
     initializedRef.current = true;
-  }, [isOpen, initialValues, isAuthenticated]);
+  }, [isOpen, initialValues]);
 
   const buildIsoFromDateTime = (dateObj?: Date, timeString?: string): string | undefined => {
     if (!dateObj) return undefined;
@@ -336,9 +329,7 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
       const linkData = {
         urlName,
         originalUrl: url,
-        customAlias: customAlias || undefined, // Send undefined if empty
-        // Auto-assign privacy: if logged in -> private, else public
-        isPrivate,
+        customAlias: customAlias || undefined,
         hasPassword,
         password: hasPassword ? password : undefined,
         activationAt: enableActivation ? buildIsoFromDateTime(activationDate, activationTime) : undefined,

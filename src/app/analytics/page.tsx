@@ -207,8 +207,8 @@ const Analytics = () => {
       return {
         clicksData: merged,
         totalClicks,
-        uniqueVisitors: Math.round(totalClicks * (statsMeta?.uniqueVisitorsRatio ?? 0.7)),
-        clickRate: statsMeta?.clickRate ?? '3.0%',
+        uniqueVisitors: Math.round(totalClicks * (statsMeta?.stats?.uniqueVisitorsRatio ?? 0.7)),
+        clickRate: statsMeta?.stats?.clickRate ?? '0',
         avgDailyClicks
       };
     } else {
@@ -243,8 +243,8 @@ const Analytics = () => {
       return {
         clicksData: enriched,
         totalClicks,
-        uniqueVisitors: Math.round(totalClicks * (statsMeta?.uniqueVisitorsRatio ?? 0.75)),
-        clickRate: statsMeta?.clickRate ?? '2.6%',
+        uniqueVisitors: Math.round(totalClicks * (statsMeta?.stats?.uniqueVisitorsRatio ?? 0.75)),
+        clickRate: statsMeta?.stats?.clickRate ?? '0',
         avgDailyClicks,
         expiredMarker,
         inactiveAreas: getInactiveAreas(series, url)
@@ -284,39 +284,40 @@ const Analytics = () => {
   // Update device, referrer, and country data when statsMeta changes
   useEffect(() => {
     if (statsMeta) {
-      setDeviceData(statsMeta.deviceBreakdown || []);
-      setReferrerData(statsMeta.referrers || []);
-      setCountryData(statsMeta.countries || []);
+      setDeviceData(statsMeta.deviceBreakdown ?? []);
+      setReferrerData(statsMeta.referrers ?? []);
+      setCountryData(statsMeta.countries ?? []);
     }
   }, [statsMeta]);
 
+  const statsChanges = statsMeta?.stats?.changes;
   const stats = [
     { 
       label: 'Total Clicks', 
       value: analyticsData.totalClicks.toLocaleString(), 
-      change: statsMeta?.changes?.totalClicks ?? '+0%', 
-      trend: statsMeta?.changes?.totalClicksTrend ?? 'up',
+      change: statsChanges?.totalClicks ?? '0%', 
+      trend: statsChanges?.totalClicksTrend ?? 'neutral',
       icon: <BarChart3 className="w-6 h-6" />
     },
     { 
       label: 'Unique Visitors', 
       value: analyticsData.uniqueVisitors.toLocaleString(), 
-      change: statsMeta?.changes?.uniqueVisitors ?? '+0%', 
-      trend: statsMeta?.changes?.uniqueVisitorsTrend ?? 'up',
+      change: statsChanges?.uniqueVisitors ?? '0%', 
+      trend: statsChanges?.uniqueVisitorsTrend ?? 'neutral',
       icon: <Users className="w-6 h-6" />
     },
     { 
-      label: 'Click Rate', 
-      value: statsMeta?.clickRate ?? analyticsData.clickRate, 
-      change: statsMeta?.changes?.clickRate ?? '+0%', 
-      trend: statsMeta?.changes?.clickRateTrend ?? 'up',
+      label: 'Clicks / Link', 
+      value: statsMeta?.stats?.clickRate ?? '0', 
+      change: statsChanges?.clickRate ?? '0%', 
+      trend: statsChanges?.clickRateTrend ?? 'neutral',
       icon: <TrendingUp className="w-6 h-6" />
     },
     { 
       label: 'Avg. Daily Clicks', 
       value: analyticsData.avgDailyClicks.toLocaleString(), 
-      change: statsMeta?.changes?.avgDailyClicks ?? '+0%', 
-      trend: statsMeta?.changes?.avgDailyClicksTrend ?? 'up',
+      change: statsChanges?.avgDailyClicks ?? '0%', 
+      trend: statsChanges?.avgDailyClicksTrend ?? 'neutral',
       icon: <Clock className="w-6 h-6" />
     }
   ];
@@ -394,9 +395,9 @@ const Analytics = () => {
                   {stat.icon}
                 </div>
                 <div className={`flex items-center gap-1 text-sm font-medium ${
-                  stat.trend === 'up' ? 'text-green-600' : 'text-red-600'
+                  stat.trend === 'up' ? 'text-green-600' : stat.trend === 'down' ? 'text-red-600' : 'text-gray-500'
                 }`}>
-                  {stat.trend === 'up' ? <ArrowUp className="w-4 h-4" /> : <ArrowDown className="w-4 h-4" />}
+                  {stat.trend === 'up' ? <ArrowUp className="w-4 h-4" /> : stat.trend === 'down' ? <ArrowDown className="w-4 h-4" /> : null}
                   {stat.change}
                 </div>
               </div>
@@ -409,6 +410,11 @@ const Analytics = () => {
         {/* Clicks Over Time - Full Width */}
         <Card className="p-6 mb-8 backdrop-blur-sm bg-white/80 dark:bg-gray-800/80 shadow-xl border-0">
           <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Clicks Over Time</h3>
+          {(!analyticsData.clicksData || analyticsData.clicksData.length === 0) ? (
+            <div className="flex items-center justify-center h-[300px] text-gray-400 dark:text-gray-500 text-sm">
+              No click data yet — share your links to start tracking!
+            </div>
+          ) : (
           <div className="overflow-x-auto">
             <div style={{ minWidth: Math.max((analyticsData.clicksData?.length || 0) * 40, 800) }}>
               <ResponsiveContainer width="100%" height={300}>
@@ -462,6 +468,7 @@ const Analytics = () => {
               </ResponsiveContainer>
             </div>
           </div>
+          )}
         </Card>
 
         {/* Charts Section */}
@@ -469,50 +476,64 @@ const Analytics = () => {
           {/* Device Breakdown */}
           <Card className="p-6 backdrop-blur-sm bg-white/80 dark:bg-gray-800/80 shadow-xl border-0">
             <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Device Breakdown</h3>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={deviceData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={120}
-                  paddingAngle={5}
-                  dataKey="value"
-                >
-                  {deviceData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
+            {deviceData.length === 0 ? (
+              <div className="flex items-center justify-center h-[300px] text-gray-400 dark:text-gray-500 text-sm">
+                No click data yet
+              </div>
+            ) : (
+              <>
+                <ResponsiveContainer width="100%" height={300}>
+                  <PieChart>
+                    <Pie
+                      data={deviceData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={60}
+                      outerRadius={120}
+                      paddingAngle={5}
+                      dataKey="value"
+                    >
+                      {deviceData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="flex justify-center gap-6 mt-4">
+                  {deviceData.map((item, index) => (
+                    <div key={index} className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }}></div>
+                      <span className="text-sm text-gray-600 dark:text-gray-300">{item.name}</span>
+                    </div>
                   ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-            <div className="flex justify-center gap-6 mt-4">
-              {deviceData.map((item, index) => (
-                <div key={index} className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }}></div>
-                  <span className="text-sm text-gray-600 dark:text-gray-300">{item.name}</span>
                 </div>
-              ))}
-            </div>
+              </>
+            )}
           </Card>
           
           {/* Traffic Sources */}
           <Card className="p-6 backdrop-blur-sm bg-white/80 dark:bg-gray-800/80 shadow-xl border-0">
             <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Traffic Sources</h3>
-            <div className="overflow-x-auto">
-              <div style={{ minWidth: 800 }}>
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={referrerData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="source" />
-                    <YAxis />
-                    <Tooltip />
-                    <Bar dataKey="clicks" fill="#8B5CF6" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
+            {referrerData.length === 0 ? (
+              <div className="flex items-center justify-center h-[300px] text-gray-400 dark:text-gray-500 text-sm">
+                No click data yet
               </div>
-            </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <div style={{ minWidth: Math.max(referrerData.length * 100, 400) }}>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={referrerData}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="source" />
+                      <YAxis />
+                      <Tooltip />
+                      <Bar dataKey="clicks" fill="#8B5CF6" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            )}
           </Card>
         </div>
 
@@ -527,6 +548,9 @@ const Analytics = () => {
                   <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Countries and Regions</h3>
                 </div>
                 <div className="space-y-4 max-h-80 overflow-y-auto pr-2">
+                  {countryData.length === 0 && (
+                    <p className="text-sm text-gray-400 dark:text-gray-500 text-center py-8">No geographic data yet</p>
+                  )}
                   {countryData.map((country) => (
                     <button
                       key={country.country}
@@ -610,11 +634,6 @@ const Analytics = () => {
                     <p className="text-sm text-gray-600 dark:text-gray-300">{url.clicks.toLocaleString()} clicks</p>
                   </div>
                   <div className="flex items-center gap-2">
-                    {url.isPrivate && (
-                      <span className="px-2 py-1 text-xs bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300 rounded">
-                        Private
-                      </span>
-                    )}
                     {url.hasPassword && (
                       <span className="px-2 py-1 text-xs bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded">
                         Protected

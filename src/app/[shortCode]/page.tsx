@@ -101,14 +101,6 @@ export default function ShortCodeRedirect() {
           return;
         }
 
-        // If URL is private, check authentication
-        if (foundUrl.isPrivate) {
-          // In real app, check if user is authenticated
-          setError('This link is private and requires authentication');
-          setIsLoading(false);
-          return;
-        }
-
         // Redirect to original URL
         redirectToOriginalUrl(foundUrl.originalUrl);
         
