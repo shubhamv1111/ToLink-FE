@@ -1,5 +1,5 @@
 // API Configuration and Base Client
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 const API_VERSION = '/v1';
 
 // API Client with cookie support
