@@ -341,7 +341,6 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
       setUrl('');
       setCustomAlias('');
       setUrlName('');
-      setIsPrivate(false);
       setHasPassword(false);
       setPassword('');
       setEnableActivation(false);
