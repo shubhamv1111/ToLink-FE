@@ -13,7 +13,7 @@ import { UrlCard } from '@/components/dashboard/UrlCard';
 import { CreateLinkModal } from '@/components/dashboard/CreateLinkModal';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
-import { generateShortUrl, generateDeterministicCodeFromString } from '@/lib/utils';
+import { linksApi } from '@/lib/api';
 
 interface UrlData {
   id: string;
@@ -41,36 +41,48 @@ const Dashboard = () => {
   const router = useRouter();
 
   const [urls, setUrls] = useState<UrlData[]>([]);
+  const [isLoadingData, setIsLoadingData] = useState(true);
+
+  const loadLinks = async () => {
+    try {
+      setIsLoadingData(true);
+      const response = await linksApi.getList({
+        sort: '-createdAt',
+        limit: 100,
+      });
+      
+      const mapped: UrlData[] = response.items.map((link) => ({
+        id: link.id,
+        originalUrl: link.originalUrl,
+        shortCode: link.shortCode,
+        shortUrl: link.shortUrl,
+        clicks: link.clicks,
+        createdAt: link.createdAt,
+        lastClicked: link.lastClicked,
+        isPrivate: link.isPrivate,
+        hasPassword: link.hasPassword,
+        urlName: link.urlName,
+        activationAt: link.activationAt,
+        expiresAt: link.expiresAt,
+        enabled: link.enabled,
+      }));
+      setUrls(mapped);
+    } catch (error: any) {
+      toast({
+        title: "Error Loading Links",
+        description: error?.message || "Failed to load your links",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingData(false);
+    }
+  };
 
   useEffect(() => {
-    // Load initial data from json
-    const load = async () => {
-      try {
-        const res = await fetch('/data/urls.json');
-        const data = await res.json();
-        const mapped: UrlData[] = (data || []).map((u: any) => ({
-          id: String(u.id),
-          originalUrl: u.originalUrl,
-          shortCode: u.shortCode,
-          shortUrl: generateShortUrl(u.shortCode),
-          clicks: Number(u.clicks || 0),
-          createdAt: u.createdAt,
-          lastClicked: u.lastClicked,
-          isPrivate: !!u.isPrivate,
-          hasPassword: !!u.hasPassword,
-          urlName: u.urlName,
-          password: u.password,
-          activationAt: u.activationAt,
-          expiresAt: u.expiredAt || u.expiresAt,
-          enabled: u.enabled !== false
-        }));
-        setUrls(mapped);
-      } catch (e) {
-        // noop
-      }
-    };
-    load();
-  }, []);
+    if (isAuthenticated) {
+      loadLinks();
+    }
+  }, [isAuthenticated]);
 
   // Check authentication
   useEffect(() => {
@@ -122,108 +134,80 @@ const Dashboard = () => {
     }
   };
 
-  const deleteUrl = (id: string) => {
-    setUrls(urls.filter(url => url.id !== id));
-    toast({
-      title: "URL Deleted",
-      description: "The short URL has been removed from your dashboard",
-    });
+  const deleteUrl = async (id: string) => {
+    try {
+      await linksApi.delete(id);
+      setUrls(urls.filter(url => url.id !== id));
+      toast({
+        title: "URL Deleted",
+        description: "The short URL has been removed from your dashboard",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Delete Failed",
+        description: error?.message || "Failed to delete the link",
+        variant: "destructive",
+      });
+    }
   };
 
-  const editUrl = (id: string, updatedData: any) => {
-    const updatedList = urls.map(url => 
-      url.id === id ? { ...url, ...updatedData } : url
-    );
-    setUrls(updatedList);
-    // Sync to localStorage so redirect route can read scheduling info
+  const editUrl = async (id: string, updatedData: any) => {
     try {
-      const stored = JSON.parse(localStorage.getItem('shortenedUrls') || '[]');
-      const foundIndex = stored.findIndex((u: any) => u.shortCode === updatedData.shortCode || u.shortCode === urls.find(x => x.id === id)?.shortCode);
-      if (foundIndex >= 0) {
-        stored[foundIndex] = {
-          ...stored[foundIndex],
-          originalUrl: updatedData.originalUrl ?? stored[foundIndex].originalUrl,
-          shortCode: updatedData.shortCode ?? stored[foundIndex].shortCode,
-          shortUrl: updatedData.shortUrl ?? stored[foundIndex].shortUrl,
-          urlName: updatedData.urlName ?? stored[foundIndex].urlName,
-          isPrivate: updatedData.isPrivate ?? stored[foundIndex].isPrivate,
-          hasPassword: updatedData.hasPassword ?? stored[foundIndex].hasPassword,
-          activationAt: updatedData.activationAt ?? stored[foundIndex].activationAt,
-          expiresAt: updatedData.expiresAt ?? stored[foundIndex].expiresAt,
-          enabled: (updatedData.enabled ?? stored[foundIndex].enabled) ?? true,
-        };
-      } else {
-        const current = updatedList.find(u => u.id === id);
-        if (current) {
-          const toStore = {
-            originalUrl: current.originalUrl,
-            shortCode: current.shortCode,
-            shortUrl: current.shortUrl,
-            customAlias: current.shortCode,
-            urlName: current.urlName,
-            createdAt: current.createdAt,
-            clickCount: current.clicks,
-            isPrivate: current.isPrivate,
-            hasPassword: current.hasPassword,
-            activationAt: current.activationAt,
-            expiresAt: current.expiresAt,
-            enabled: updatedData.enabled ?? current.enabled ?? true,
-          };
-          stored.push(toStore);
-        }
-      }
-      localStorage.setItem('shortenedUrls', JSON.stringify(stored));
-    } catch {}
-    toast({
-      title: "URL Updated",
-      description: "The link has been updated successfully",
-    });
+      const updatePayload: any = {};
+      if (updatedData.urlName !== undefined) updatePayload.urlName = updatedData.urlName;
+      if (updatedData.originalUrl !== undefined) updatePayload.originalUrl = updatedData.originalUrl;
+      if (updatedData.customAlias !== undefined) updatePayload.customAlias = updatedData.customAlias;
+      if (updatedData.enabled !== undefined) updatePayload.enabled = updatedData.enabled;
+      if (updatedData.activationAt !== undefined) updatePayload.activationAt = updatedData.activationAt;
+      if (updatedData.expiresAt !== undefined) updatePayload.expiresAt = updatedData.expiresAt;
+      if (updatedData.hasPassword !== undefined) updatePayload.hasPassword = updatedData.hasPassword;
+      if (updatedData.password !== undefined) updatePayload.password = updatedData.password;
+
+      await linksApi.update(id, updatePayload);
+      
+      // Refresh the link data from backend
+      await loadLinks();
+      
+      toast({
+        title: "URL Updated",
+        description: "The link has been updated successfully",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Update Failed",
+        description: error?.message || "Failed to update the link",
+        variant: "destructive",
+      });
+    }
   };
 
   const createLink = async (linkData: any) => {
-    const shortCode = linkData.customAlias || generateDeterministicCodeFromString(linkData.originalUrl);
-    const newUrl: UrlData = {
-      id: Date.now().toString(),
-      originalUrl: linkData.originalUrl,
-      shortCode: shortCode,
-      shortUrl: generateShortUrl(shortCode),
-      clicks: 0,
-      createdAt: new Date().toISOString(),
-      isPrivate: linkData.isPrivate,
-      hasPassword: linkData.hasPassword,
-      urlName: linkData.urlName,
-      password: linkData.password,
-      activationAt: linkData.activationAt,
-      expiresAt: linkData.expiresAt,
-      enabled: true
-    };
-    
-    setUrls([newUrl, ...urls]);
-    // Also persist to localStorage so the public redirect can access it
     try {
-      const existing = JSON.parse(localStorage.getItem('shortenedUrls') || '[]');
-      // avoid duplicates by shortCode
-      const without = existing.filter((u: any) => u.shortCode !== newUrl.shortCode);
-      without.push({
-        originalUrl: newUrl.originalUrl,
-        shortCode: newUrl.shortCode,
-        shortUrl: newUrl.shortUrl,
-        customAlias: newUrl.shortCode,
-        urlName: newUrl.urlName,
-        createdAt: newUrl.createdAt,
-        clickCount: newUrl.clicks,
-        isPrivate: newUrl.isPrivate,
-        hasPassword: newUrl.hasPassword,
-        activationAt: newUrl.activationAt,
-        expiresAt: newUrl.expiresAt,
-        enabled: newUrl.enabled
+      await linksApi.create({
+        originalUrl: linkData.originalUrl,
+        customAlias: linkData.customAlias,
+        urlName: linkData.urlName,
+        isPrivate: linkData.isPrivate,
+        hasPassword: linkData.hasPassword,
+        password: linkData.password,
+        activationAt: linkData.activationAt,
+        expiresAt: linkData.expiresAt,
       });
-      localStorage.setItem('shortenedUrls', JSON.stringify(without));
-    } catch {}
-    toast({
-      title: "Link Created",
-      description: "Your new short link has been created successfully",
-    });
+      
+      // Refresh the links list
+      await loadLinks();
+      
+      toast({
+        title: "Link Created",
+        description: "Your short link has been created successfully",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Creation Failed",
+        description: error?.message || "Failed to create the link",
+        variant: "destructive",
+      });
+    }
   };
 
   const filteredUrls = urls.filter(url => {

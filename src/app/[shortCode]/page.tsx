@@ -36,50 +36,36 @@ export default function ShortCodeRedirect() {
       return;
     }
 
-    // Simulate API call to fetch URL data
+    // Fetch URL data from backend
     const fetchUrlData = async () => {
       try {
-        // Simulate API delay
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+        const response = await fetch(`${API_URL}/v1/links/${shortCode}/public-meta`, {
+          method: 'GET',
+          credentials: 'include',
+        });
         
-        // Check localStorage first for URLs created/stored locally
-        const storedUrls = JSON.parse(localStorage.getItem('shortenedUrls') || '[]');
-        let foundUrl = storedUrls.find((url: any) => url.shortCode === shortCode);
-        
-        // If not found in localStorage, check mock data
-        if (!foundUrl) {
-          const mockUrls = [
-            {
-              shortCode: 'fr7b2t',
-              originalUrl: 'https://example.com/very-long-url-that-needs-shortening',
-              isPrivate: false,
-              hasPassword: false,
-              urlName: 'Example Link'
-            },
-            {
-              shortCode: 'abc123',
-              originalUrl: 'https://github.com/username/repository',
-              isPrivate: false,
-              hasPassword: false,
-              urlName: 'GitHub Repository'
-            },
-            {
-              shortCode: 'docs42',
-              originalUrl: 'https://docs.google.com/document/d/1234567890/edit',
-              isPrivate: false,
-              hasPassword: true,
-              urlName: 'Protected Document'
-            }
-          ];
-
-          foundUrl = mockUrls.find(url => url.shortCode === shortCode);
-        }
-        
-        if (!foundUrl) {
-          setError('Link not found');
+        if (!response.ok) {
+          if (response.status === 404) {
+            setError('Link not found');
+          } else {
+            setError('Failed to load link');
+          }
           setIsLoading(false);
           return;
         }
+
+        const data = await response.json();
+        const foundUrl = {
+          originalUrl: data.originalUrl,
+          shortCode: data.shortCode,
+          isPrivate: data.isPrivate,
+          hasPassword: data.hasPassword,
+          urlName: data.urlName,
+          activationAt: data.activationAt,
+          expiresAt: data.expiresAt,
+          enabled: data.enabled,
+        };
 
         setUrlData(foundUrl);
 
@@ -115,14 +101,6 @@ export default function ShortCodeRedirect() {
           return;
         }
 
-        // If URL is private, check authentication
-        if (foundUrl.isPrivate) {
-          // In real app, check if user is authenticated
-          setError('This link is private and requires authentication');
-          setIsLoading(false);
-          return;
-        }
-
         // Redirect to original URL
         redirectToOriginalUrl(foundUrl.originalUrl);
         
@@ -145,25 +123,42 @@ export default function ShortCodeRedirect() {
 
   const handlePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!password.trim()) {
+      toast({
+        title: 'Password Required',
+        description: 'Please enter a password',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setIsPasswordLoading(true);
     
     try {
-      // Simulate password verification
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      if (password === 'demo123') {
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+      const response = await fetch(`${API_URL}/v1/links/${shortCode}/access`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({ password }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.redirectUrl) {
         toast({
           title: "Access Granted",
           description: "Redirecting to the original URL...",
         });
-        
-        if (urlData) {
-          redirectToOriginalUrl(urlData.originalUrl);
-        }
+        // Use the redirectUrl returned by the backend (includes redirect token)
+        window.location.href = `${API_URL}${data.redirectUrl}`;
       } else {
         toast({
           title: "Incorrect Password",
-          description: "Please enter the correct password",
+          description: data.message || "Please enter the correct password",
           variant: "destructive",
         });
       }
@@ -298,11 +293,6 @@ export default function ShortCodeRedirect() {
             </Button>
           </form>
           
-          <div className="mt-4 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-            <p className="text-xs text-gray-600 dark:text-gray-300">
-              <strong>For demo purposes:</strong> Use password "demo123"
-            </p>
-          </div>
         </Card>
       </div>
     );

@@ -27,29 +27,30 @@ export default function Login() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    const success = await login(email, password);
-    
-    if (success) {
+
+    try {
+      await login(email, password);
       toast({
         title: "Login Successful",
         description: "Welcome back to ToLink!",
       });
       router.push('/dashboard');
-    } else {
+    } catch (error: any) {
+      const msg: string = error?.message || '';
+      const isGoogleAccount = msg.toLowerCase().includes('google sign-in');
       toast({
-        title: "Login Failed",
-        description: "Invalid email or password. Try demo@example.com / password",
+        title: isGoogleAccount ? "Use Google Sign-In" : "Login Failed",
+        description: isGoogleAccount
+          ? "This account uses Google Sign-In. Please continue with Google or set a password first."
+          : "Invalid email or password. Please try again.",
         variant: "destructive",
       });
     }
   };
 
   const handleGoogleLogin = () => {
-    toast({
-      title: "Google Login",
-      description: "Google OAuth integration would happen here",
-    });
+    const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+    window.location.href = `${apiBase}/v1/auth/google`;
   };
 
   if (isLoading || isAuthenticated) {
@@ -164,12 +165,6 @@ export default function Login() {
               </svg>
               Continue with Google
             </Button>
-          </div>
-
-          <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-            <p className="text-xs text-blue-600 dark:text-blue-400 text-center">
-              <strong>Demo Login:</strong> Use email "demo@example.com" and password "password"
-            </p>
           </div>
 
           <p className="text-center mt-6 text-sm text-gray-600 dark:text-gray-300">

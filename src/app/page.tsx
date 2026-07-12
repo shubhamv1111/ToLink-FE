@@ -10,11 +10,11 @@ import { QRCodeDisplay } from '@/components/QRCodeDisplay';
 import { AnalyticsCard } from '@/components/AnalyticsCard';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
-import { generateShortUrl, generateDeterministicCodeFromString } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { Switch } from '@/components/ui/switch';
+import { linksApi } from '@/lib/api';
 
 interface ShortenedUrl {
   originalUrl: string;
@@ -49,6 +49,8 @@ export default function HomePage() {
   const [enableExpiration, setEnableExpiration] = useState(false);
   const [expirationDate, setExpirationDate] = useState<Date | undefined>(undefined);
   const [expirationTime, setExpirationTime] = useState('');
+  const [aliasAvailable, setAliasAvailable] = useState<boolean | null>(null);
+  const [aliasChecking, setAliasChecking] = useState(false);
 
   const isValidUrl = (string: string) => {
     try {
@@ -58,6 +60,30 @@ export default function HomePage() {
       return false;
     }
   };
+
+  // Check custom alias availability with debounce
+  useEffect(() => {
+    if (!customAlias) {
+      setAliasAvailable(null);
+      return;
+    }
+
+    const checkAvailability = async () => {
+      setAliasChecking(true);
+      try {
+        const result = await linksApi.checkAliasAvailability(customAlias);
+        setAliasAvailable(result.available);
+      } catch (error) {
+        setAliasAvailable(null);
+      } finally {
+        setAliasChecking(false);
+      }
+    };
+
+    // Debounce the check
+    const timer = setTimeout(checkAvailability, 500);
+    return () => clearTimeout(timer);
+  }, [customAlias]);
 
   const shortenUrl = async () => {
     if (!url) {
@@ -81,9 +107,6 @@ export default function HomePage() {
     setIsLoading(true);
     
     try {
-      // Simulate API call for demo purposes
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
       const buildIsoFromDateTime = (dateObj?: Date, timeString?: string): string | undefined => {
         if (!dateObj) return undefined;
         const d = new Date(dateObj);
@@ -92,26 +115,27 @@ export default function HomePage() {
         return d.toISOString();
       };
 
-      // Deterministic code if no custom alias
-      const shortCode = customAlias || (url.includes('example.com') ? 'fr7b2t' : generateDeterministicCodeFromString(url));
-      const newShortenedUrl: ShortenedUrl = {
+      const response = await linksApi.create({
         originalUrl: url,
-        shortCode,
-        shortUrl: generateShortUrl(shortCode),
         customAlias: customAlias || undefined,
         urlName: urlName || undefined,
-        createdAt: new Date().toISOString(),
-        clickCount: 0,
-        isPrivate: !!isAuthenticated,
-        hasPassword: false,
         activationAt: enableActivation ? buildIsoFromDateTime(activationDate, activationTime) : undefined,
-        expiresAt: enableExpiration ? buildIsoFromDateTime(expirationDate, expirationTime) : undefined
+        expiresAt: enableExpiration ? buildIsoFromDateTime(expirationDate, expirationTime) : undefined,
+      });
+
+      const newShortenedUrl: ShortenedUrl = {
+        originalUrl: response.originalUrl,
+        shortCode: response.shortCode,
+        shortUrl: response.shortUrl,
+        customAlias: customAlias || undefined,
+        urlName: response.urlName,
+        createdAt: response.createdAt,
+        clickCount: response.clicks,
+        isPrivate: response.isPrivate,
+        hasPassword: response.hasPassword,
+        activationAt: response.activationAt,
+        expiresAt: response.expiresAt,
       };
-      
-      // Store in localStorage for access from shortCode page
-      const existingUrls = JSON.parse(localStorage.getItem('shortenedUrls') || '[]');
-      existingUrls.push(newShortenedUrl);
-      localStorage.setItem('shortenedUrls', JSON.stringify(existingUrls));
       
       setShortenedUrl(newShortenedUrl);
       
@@ -119,10 +143,10 @@ export default function HomePage() {
         title: "Success!",
         description: "Your URL has been shortened successfully",
       });
-    } catch (error) {
+    } catch (error: any) {
       toast({
         title: "Error",
-        description: "Failed to shorten URL. Please try again.",
+        description: error?.message || "Failed to shorten URL. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -269,14 +293,33 @@ export default function HomePage() {
                   <label htmlFor="alias" className="text-sm font-medium text-gray-700 dark:text-gray-300">
                     Custom alias (optional)
                   </label>
-                  <Input
-                    id="alias"
-                    type="text"
-                    placeholder="my-custom-link"
-                    value={customAlias}
-                    onChange={(e) => setCustomAlias(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
-                    className="h-12"
-                  />
+                  <div className="relative">
+                    <Input
+                      id="alias"
+                      type="text"
+                      placeholder="my-custom-link"
+                      value={customAlias}
+                      onChange={(e) => setCustomAlias(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
+                      className="h-12 pr-10"
+                    />
+                    {customAlias && (
+                      <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                        {aliasChecking ? (
+                          <div className="animate-spin rounded-full h-4 w-4 border-2 border-gray-400 border-t-transparent" />
+                        ) : aliasAvailable === true ? (
+                          <CheckCircle className="w-4 h-4 text-green-500" />
+                        ) : aliasAvailable === false ? (
+                          <X className="w-4 h-4 text-red-500" />
+                        ) : null}
+                      </div>
+                    )}
+                  </div>
+                  {customAlias && aliasAvailable === false && (
+                    <p className="text-xs text-red-500">This alias is already taken</p>
+                  )}
+                  {customAlias && aliasAvailable === true && (
+                    <p className="text-xs text-green-500">This alias is available</p>
+                  )}
                 </div>
               </div>
             </div>

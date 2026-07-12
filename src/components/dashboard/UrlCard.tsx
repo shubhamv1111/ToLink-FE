@@ -9,7 +9,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useRouter } from 'next/navigation';
 import { CreateLinkModal } from './CreateLinkModal';
-import { generateShortUrl } from '@/lib/utils';
 
 interface UrlData {
   id: string;
@@ -72,9 +71,7 @@ export const UrlCard: React.FC<UrlCardProps> = ({ url, onCopy, onDelete, onEdit 
     onEdit(url.id, {
       urlName: linkData.urlName,
       originalUrl: linkData.originalUrl,
-      shortCode: linkData.customAlias,
-      shortUrl: generateShortUrl(linkData.customAlias),
-      isPrivate: linkData.isPrivate,
+      customAlias: linkData.customAlias,
       hasPassword: linkData.hasPassword,
       password: linkData.hasPassword ? linkData.password : undefined,
       activationAt: linkData.activationAt,
@@ -319,7 +316,6 @@ export const UrlCard: React.FC<UrlCardProps> = ({ url, onCopy, onDelete, onEdit 
               urlName: url.urlName,
               originalUrl: url.originalUrl,
               customAlias: url.shortCode,
-              isPrivate: url.isPrivate,
               hasPassword: url.hasPassword,
               password: url.password,
               activationAt: url.activationAt,
