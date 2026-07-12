@@ -4,18 +4,24 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ExternalLink, Loader2, AlertCircle, Hourglass, CalendarX2 } from 'lucide-react';
+import { Loader2, AlertCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
-interface ShortUrlData {
-  originalUrl: string;
+interface PublicLinkMeta {
   shortCode: string;
-  isPrivate: boolean;
+  status: 'active' | 'password_required' | 'not_activated' | 'expired' | 'disabled';
+  hasPassword: boolean;
+  urlName?: string | null;
+  activationAt?: string | null;
+  expiresAt?: string | null;
+}
+
+interface ShortUrlData {
+  shortCode: string;
   hasPassword: boolean;
   urlName?: string;
   activationAt?: string;
   expiresAt?: string;
-  enabled?: boolean;
 }
 
 export default function ShortCodeRedirect() {
@@ -30,96 +36,93 @@ export default function ShortCodeRedirect() {
   const [isPasswordLoading, setIsPasswordLoading] = useState(false);
 
   useEffect(() => {
-    if (!shortCode) {
+    const code = Array.isArray(shortCode) ? shortCode[0] : shortCode;
+
+    if (!code || code === 'undefined') {
       setError('Invalid short code');
       setIsLoading(false);
       return;
     }
 
-    // Fetch URL data from backend
     const fetchUrlData = async () => {
       try {
         const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
-        const response = await fetch(`${API_URL}/v1/links/${shortCode}/public-meta`, {
+        const response = await fetch(`${API_URL}/v1/links/${code}/public-meta`, {
           method: 'GET',
           credentials: 'include',
         });
-        
+
         if (!response.ok) {
-          if (response.status === 404) {
-            setError('Link not found');
-          } else {
-            setError('Failed to load link');
-          }
+          setError(response.status === 404 ? 'Link not found' : 'Failed to load link');
           setIsLoading(false);
           return;
         }
 
-        const data = await response.json();
-        const foundUrl = {
-          originalUrl: data.originalUrl,
+        const data: PublicLinkMeta = await response.json();
+        const foundUrl: ShortUrlData = {
           shortCode: data.shortCode,
-          isPrivate: data.isPrivate,
           hasPassword: data.hasPassword,
-          urlName: data.urlName,
-          activationAt: data.activationAt,
-          expiresAt: data.expiresAt,
-          enabled: data.enabled,
+          urlName: data.urlName ?? undefined,
+          activationAt: data.activationAt ?? undefined,
+          expiresAt: data.expiresAt ?? undefined,
         };
 
         setUrlData(foundUrl);
 
-        // Check activation / expiration and redirect to status pages
-        const now = new Date();
-        // If disabled, behave as not activated
-        if (foundUrl.enabled === false) {
-          setIsLoading(false);
-          router.replace(`/not-activated?code=${encodeURIComponent(String(shortCode))}`);
-          return;
-        }
-        if (foundUrl.activationAt) {
-          const activateAt = new Date(foundUrl.activationAt);
-          if (now < activateAt) {
-            setIsLoading(false);
-            router.replace(`/not-activated?code=${encodeURIComponent(String(shortCode))}&at=${encodeURIComponent(activateAt.toISOString())}`);
+        switch (data.status) {
+          case 'active':
+            if (data.hasPassword) {
+              setShowPasswordForm(true);
+              setIsLoading(false);
+              return;
+            }
+            // Backend redirect tracks clicks and resolves the destination URL
+            window.location.href = `${API_URL}/r/${code}`;
             return;
-          }
-        }
-        if (foundUrl.expiresAt) {
-          const expireAt = new Date(foundUrl.expiresAt);
-          if (now > expireAt) {
-            setIsLoading(false);
-            router.replace(`/expired?code=${encodeURIComponent(String(shortCode))}&exp=${encodeURIComponent(expireAt.toISOString())}`);
-            return;
-          }
-        }
-        
-        // If URL has password protection, show password form
-        if (foundUrl.hasPassword) {
-          setShowPasswordForm(true);
-          setIsLoading(false);
-          return;
-        }
 
-        // Redirect to original URL
-        redirectToOriginalUrl(foundUrl.originalUrl);
-        
-      } catch (error) {
+          case 'password_required':
+            setShowPasswordForm(true);
+            setIsLoading(false);
+            return;
+
+          case 'not_activated':
+            setIsLoading(false);
+            router.replace(
+              `/not-activated?code=${encodeURIComponent(code)}${
+                data.activationAt
+                  ? `&at=${encodeURIComponent(data.activationAt)}`
+                  : ''
+              }`,
+            );
+            return;
+
+          case 'expired':
+            setIsLoading(false);
+            router.replace(
+              `/expired?code=${encodeURIComponent(code)}${
+                data.expiresAt ? `&exp=${encodeURIComponent(data.expiresAt)}` : ''
+              }`,
+            );
+            return;
+
+          case 'disabled':
+            setError('This link is currently disabled');
+            setIsLoading(false);
+            return;
+
+          default: {
+            const _exhaustive: never = data.status;
+            throw new Error(`Unhandled link status: ${_exhaustive}`);
+          }
+        }
+      } catch {
         setError('Failed to load link');
         setIsLoading(false);
       }
     };
 
     fetchUrlData();
-  }, [shortCode]);
-
-  const redirectToOriginalUrl = (url: string) => {
-    // Track the click (in real app, this would be an API call)
-    console.log(`Redirecting to: ${url}`);
-    
-    // Redirect to original URL
-    window.location.href = url;
-  };
+  }, [shortCode, router]);
 
   const handlePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -194,38 +197,6 @@ export default function ShortCodeRedirect() {
   }
 
   if (error) {
-    if (error === 'NOT_ACTIVATED' && urlData) {
-      const activateAt = urlData.activationAt ? new Date(urlData.activationAt) : null;
-      return (
-        <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex items-center justify-center p-4">
-          <Card className="p-8 backdrop-blur-sm bg-white/80 dark:bg-gray-800/80 shadow-xl border-0 text-center max-w-md">
-            <Hourglass className="w-16 h-16 text-blue-600 mx-auto mb-4" />
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">This link is not active yet</h1>
-            <p className="text-gray-600 dark:text-gray-300 mb-2">The link has been scheduled to activate soon.</p>
-            {activateAt && (
-              <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">Scheduled activation: {activateAt.toLocaleString()}</p>
-            )}
-            <Button onClick={goHome} className="w-full">Go Home</Button>
-          </Card>
-        </div>
-      );
-    }
-    if (error === 'EXPIRED' && urlData) {
-      const expireAt = urlData.expiresAt ? new Date(urlData.expiresAt) : null;
-      return (
-        <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex items-center justify-center p-4">
-          <Card className="p-8 backdrop-blur-sm bg-white/80 dark:bg-gray-800/80 shadow-xl border-0 text-center max-w-md">
-            <CalendarX2 className="w-16 h-16 text-red-600 mx-auto mb-4" />
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">This link has expired</h1>
-            <p className="text-gray-600 dark:text-gray-300 mb-2">The link is no longer available.</p>
-            {expireAt && (
-              <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">Expired on: {expireAt.toLocaleString()}</p>
-            )}
-            <Button onClick={goHome} className="w-full">Go Home</Button>
-          </Card>
-        </div>
-      );
-    }
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex items-center justify-center p-4">
         <Card className="p-8 backdrop-blur-sm bg-white/80 dark:bg-gray-800/80 shadow-xl border-0 text-center max-w-md">
