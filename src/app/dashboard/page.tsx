@@ -13,7 +13,7 @@ import { UrlCard } from '@/components/dashboard/UrlCard';
 import { CreateLinkModal } from '@/components/dashboard/CreateLinkModal';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
-import { linksApi } from '@/lib/api';
+import { linksApi, CreateLinkRequest } from '@/lib/api';
 
 interface UrlData {
   id: string;
@@ -183,7 +183,7 @@ const Dashboard = () => {
 
   const createLink = async (linkData: any) => {
     try {
-      const createPayload: Record<string, unknown> = {
+      const createPayload: CreateLinkRequest = {
         originalUrl: linkData.originalUrl,
         isPrivate: linkData.isPrivate,
         hasPassword: linkData.hasPassword,
@@ -194,7 +194,7 @@ const Dashboard = () => {
       if (linkData.activationAt) createPayload.activationAt = linkData.activationAt;
       if (linkData.expiresAt) createPayload.expiresAt = linkData.expiresAt;
 
-      await linksApi.create(createPayload as Parameters<typeof linksApi.create>[0]);
+      await linksApi.create(createPayload);
       
       // Refresh the links list
       await loadLinks();
