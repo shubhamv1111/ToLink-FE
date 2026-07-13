@@ -100,6 +100,7 @@ export interface Link {
   lastClicked?: string;
   isPrivate: boolean;
   hasPassword: boolean;
+  password?: string;
   urlName?: string;
   activationAt?: string;
   expiresAt?: string;

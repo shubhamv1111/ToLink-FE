@@ -61,6 +61,7 @@ const Dashboard = () => {
         lastClicked: link.lastClicked,
         isPrivate: link.isPrivate,
         hasPassword: link.hasPassword,
+        password: link.password,
         urlName: link.urlName,
         activationAt: link.activationAt,
         expiresAt: link.expiresAt,
