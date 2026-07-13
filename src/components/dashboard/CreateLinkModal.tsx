@@ -338,6 +338,12 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
         expiresAt: enableExpiration ? buildIsoFromDateTime(expirationDate, expirationTime) : undefined,
       };
 
+      // In edit mode, explicitly signal cleared schedules so the backend removes them.
+      if (editMode) {
+        linkData.clearActivationAt = !enableActivation;
+        linkData.clearExpiresAt = !enableExpiration;
+      }
+
       if (trimmedName) {
         linkData.urlName = trimmedName;
       }

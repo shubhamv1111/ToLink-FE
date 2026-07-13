@@ -117,6 +117,13 @@ export interface CreateLinkRequest {
   expiresAt?: string;
 }
 
+export interface UpdateLinkRequest extends Partial<CreateLinkRequest> {
+  enabled?: boolean;
+  clearActivationAt?: boolean;
+  clearExpiresAt?: boolean;
+  forceActivate?: boolean;
+}
+
 export interface LinkListResponse {
   items: Link[];
   total: number;
@@ -169,7 +176,7 @@ export const linksApi = {
   getById: (id: string) =>
     api.get<Link>(`/links/${id}`),
   
-  update: (id: string, data: Partial<CreateLinkRequest>) =>
+  update: (id: string, data: UpdateLinkRequest) =>
     api.patch<Link>(`/links/${id}`, data),
   
   delete: (id: string) =>

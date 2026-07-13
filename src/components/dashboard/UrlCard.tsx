@@ -75,7 +75,9 @@ export const UrlCard: React.FC<UrlCardProps> = ({ url, onCopy, onDelete, onEdit 
       hasPassword: linkData.hasPassword,
       password: linkData.hasPassword ? linkData.password : undefined,
       activationAt: linkData.activationAt,
-      expiresAt: linkData.expiresAt
+      expiresAt: linkData.expiresAt,
+      clearActivationAt: linkData.clearActivationAt,
+      clearExpiresAt: linkData.clearExpiresAt
     });
     setShowEdit(false);
   };

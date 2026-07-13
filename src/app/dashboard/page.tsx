@@ -160,6 +160,8 @@ const Dashboard = () => {
       if (updatedData.enabled !== undefined) updatePayload.enabled = updatedData.enabled;
       if (updatedData.activationAt !== undefined) updatePayload.activationAt = updatedData.activationAt;
       if (updatedData.expiresAt !== undefined) updatePayload.expiresAt = updatedData.expiresAt;
+      if (updatedData.clearActivationAt) updatePayload.clearActivationAt = true;
+      if (updatedData.clearExpiresAt) updatePayload.clearExpiresAt = true;
       if (updatedData.hasPassword !== undefined) updatePayload.hasPassword = updatedData.hasPassword;
       if (updatedData.password !== undefined) updatePayload.password = updatedData.password;
 
