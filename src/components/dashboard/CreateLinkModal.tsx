@@ -326,15 +326,29 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
 
     setIsLoading(true);
     try {
-      const linkData = {
-        urlName,
+      const trimmedName = urlName.trim();
+      const trimmedAlias = customAlias.trim();
+      const originalAlias = (initialValues?.customAlias || '').trim();
+
+      const linkData: Record<string, unknown> = {
         originalUrl: url,
-        customAlias: customAlias || undefined,
         hasPassword,
         password: hasPassword ? password : undefined,
         activationAt: enableActivation ? buildIsoFromDateTime(activationDate, activationTime) : undefined,
-        expiresAt: enableExpiration ? buildIsoFromDateTime(expirationDate, expirationTime) : undefined
+        expiresAt: enableExpiration ? buildIsoFromDateTime(expirationDate, expirationTime) : undefined,
       };
+
+      if (trimmedName) {
+        linkData.urlName = trimmedName;
+      }
+
+      if (editMode) {
+        if (trimmedAlias && trimmedAlias !== originalAlias) {
+          linkData.customAlias = trimmedAlias;
+        }
+      } else if (trimmedAlias) {
+        linkData.customAlias = trimmedAlias;
+      }
       await onCreate(linkData);
       // Only close and reset on success
       onClose();

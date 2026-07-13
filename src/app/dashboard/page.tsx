@@ -153,10 +153,10 @@ const Dashboard = () => {
 
   const editUrl = async (id: string, updatedData: any) => {
     try {
-      const updatePayload: any = {};
-      if (updatedData.urlName !== undefined) updatePayload.urlName = updatedData.urlName;
+      const updatePayload: Record<string, unknown> = {};
+      if (updatedData.urlName?.trim()) updatePayload.urlName = updatedData.urlName.trim();
       if (updatedData.originalUrl !== undefined) updatePayload.originalUrl = updatedData.originalUrl;
-      if (updatedData.customAlias !== undefined) updatePayload.customAlias = updatedData.customAlias;
+      if (updatedData.customAlias?.trim()) updatePayload.customAlias = updatedData.customAlias.trim();
       if (updatedData.enabled !== undefined) updatePayload.enabled = updatedData.enabled;
       if (updatedData.activationAt !== undefined) updatePayload.activationAt = updatedData.activationAt;
       if (updatedData.expiresAt !== undefined) updatePayload.expiresAt = updatedData.expiresAt;
@@ -183,16 +183,18 @@ const Dashboard = () => {
 
   const createLink = async (linkData: any) => {
     try {
-      await linksApi.create({
+      const createPayload: Record<string, unknown> = {
         originalUrl: linkData.originalUrl,
-        customAlias: linkData.customAlias,
-        urlName: linkData.urlName,
         isPrivate: linkData.isPrivate,
         hasPassword: linkData.hasPassword,
-        password: linkData.password,
-        activationAt: linkData.activationAt,
-        expiresAt: linkData.expiresAt,
-      });
+      };
+      if (linkData.urlName?.trim()) createPayload.urlName = linkData.urlName.trim();
+      if (linkData.customAlias?.trim()) createPayload.customAlias = linkData.customAlias.trim();
+      if (linkData.password) createPayload.password = linkData.password;
+      if (linkData.activationAt) createPayload.activationAt = linkData.activationAt;
+      if (linkData.expiresAt) createPayload.expiresAt = linkData.expiresAt;
+
+      await linksApi.create(createPayload as Parameters<typeof linksApi.create>[0]);
       
       // Refresh the links list
       await loadLinks();
