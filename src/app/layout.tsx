@@ -12,10 +12,16 @@ const themeInitScript = `
 (function() {
   try {
     var theme = localStorage.getItem('theme');
-    if (theme === 'dark' || (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-      document.documentElement.classList.add('dark');
+    var isDark = theme === 'dark' || (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    var root = document.documentElement;
+    if (isDark) {
+      root.classList.add('dark');
+      root.style.colorScheme = 'dark';
+      root.style.backgroundColor = '#111827';
     } else {
-      document.documentElement.classList.remove('dark');
+      root.classList.remove('dark');
+      root.style.colorScheme = 'light';
+      root.style.backgroundColor = '#ffffff';
     }
   } catch (e) {}
 })();

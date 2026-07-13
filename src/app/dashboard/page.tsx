@@ -85,15 +85,15 @@ const Dashboard = () => {
     }
   }, [isAuthenticated]);
 
-  // Check authentication
+  // Check authentication — only redirect after auth bootstrap finishes
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
       router.push('/login');
     }
   }, [isAuthenticated, isLoading, router]);
 
-  // Show loading while checking auth
-  if (isLoading || !isAuthenticated) {
+  // Block only on first auth check when no cached session exists
+  if (isLoading && !user) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
         <Navbar />
@@ -108,6 +108,10 @@ const Dashboard = () => {
         <Footer />
       </div>
     );
+  }
+
+  if (!isAuthenticated) {
+    return null;
   }
 
   const isExpired = (u: UrlData) => !!u.expiresAt && new Date() > new Date(u.expiresAt);

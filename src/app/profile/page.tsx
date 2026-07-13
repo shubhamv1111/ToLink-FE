@@ -9,7 +9,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 
 export default function ProfilePage() {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, user } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
@@ -18,7 +18,7 @@ export default function ProfilePage() {
     }
   }, [isAuthenticated, isLoading, router]);
 
-  if (isLoading) {
+  if (isLoading && !user) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
         <Navbar />

@@ -1,7 +1,7 @@
 'use client'
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { authApi, User as ApiUser } from '@/lib/api';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import { authApi, ApiError } from '@/lib/api';
 import { useBackendStatus } from '@/contexts/BackendStatusContext';
 import { shouldKeepBackendAlive } from '@/lib/backend-keepalive';
 
@@ -65,16 +65,25 @@ export const useAuth = () => {
 };
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(() => getCachedUser());
-  const [isLoading, setIsLoading] = useState(() => getCachedUser() === null);
+  const cachedUser = getCachedUser();
+  const [user, setUser] = useState<User | null>(cachedUser);
+  const [isLoading, setIsLoading] = useState(cachedUser === null);
   const { isReady, isWaking, wakeBackend } = useBackendStatus();
+  const userRef = useRef<User | null>(cachedUser);
 
-  // Check session once backend is awake (or immediately in local dev)
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
+
+  // Verify session once backend is awake (or immediately in local dev).
+  // Keep cached user visible during revalidation — only clear on explicit 401.
   useEffect(() => {
     let cancelled = false;
 
     const checkAuth = async () => {
-      if (shouldKeepBackendAlive() && !isReady && isWaking) {
+      const hasCachedUser = userRef.current !== null;
+
+      if (shouldKeepBackendAlive() && !isReady && isWaking && !hasCachedUser) {
         return;
       }
 
@@ -95,8 +104,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         cacheUser(nextUser);
       } catch (error) {
         if (cancelled) return;
-        setUser(null);
-        cacheUser(null);
+        const isUnauthorized =
+          error instanceof ApiError && error.status === 401;
+        if (isUnauthorized) {
+          setUser(null);
+          cacheUser(null);
+        }
       } finally {
         if (!cancelled) {
           setIsLoading(false);
@@ -112,7 +125,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [isReady, isWaking]);
 
   const login = async (email: string, password: string): Promise<boolean> => {
-    setIsLoading(true);
     try {
       if (shouldKeepBackendAlive()) {
         await wakeBackend();
@@ -130,16 +142,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       };
       setUser(nextUser);
       cacheUser(nextUser);
+      setIsLoading(false);
       return true;
     } catch (error) {
       throw error;
-    } finally {
-      setIsLoading(false);
     }
   };
 
   const signup = async (name: string, email: string, password: string): Promise<boolean> => {
-    setIsLoading(true);
     try {
       const userData = await authApi.signup(name, email, password);
       const nextUser: User = {
@@ -154,11 +164,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       };
       setUser(nextUser);
       cacheUser(nextUser);
+      setIsLoading(false);
       return true;
     } catch (error) {
       throw error;
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -170,6 +179,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } finally {
       setUser(null);
       cacheUser(null);
+      setIsLoading(false);
     }
   };
 
@@ -202,7 +212,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!user) return false;
     
     try {
-      // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 500));
       
       const updatedUser = { ...user, profilePhoto: photoUrl };
@@ -231,4 +240,4 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       {children}
     </AuthContext.Provider>
   );
-}; 
+};

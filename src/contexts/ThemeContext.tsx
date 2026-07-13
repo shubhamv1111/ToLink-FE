@@ -44,10 +44,15 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   useEffect(() => {
     if (mounted) {
       localStorage.setItem('theme', theme);
+      const root = document.documentElement;
       if (theme === 'dark') {
-        document.documentElement.classList.add('dark');
+        root.classList.add('dark');
+        root.style.colorScheme = 'dark';
+        root.style.backgroundColor = '#111827';
       } else {
-        document.documentElement.classList.remove('dark');
+        root.classList.remove('dark');
+        root.style.colorScheme = 'light';
+        root.style.backgroundColor = '#ffffff';
       }
     }
   }, [theme, mounted]);

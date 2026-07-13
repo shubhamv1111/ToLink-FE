@@ -97,7 +97,15 @@
     @apply border-border;
   }
 
+  html {
+    @apply bg-background;
+  }
+
+  html.dark {
+    color-scheme: dark;
+  }
+
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground min-h-screen;
   }
 }

@@ -15,6 +15,7 @@ export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
   const { login, isAuthenticated, isLoading } = useAuth();
   const { isWaking } = useBackendStatus();
@@ -31,6 +32,7 @@ export default function Login() {
     e.preventDefault();
 
     try {
+      setIsSubmitting(true);
       await login(email, password);
       toast({
         title: "Login Successful",
@@ -47,6 +49,8 @@ export default function Login() {
           : "Invalid email or password. Please try again.",
         variant: "destructive",
       });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -138,10 +142,10 @@ export default function Login() {
 
             <Button
               type="submit"
-              disabled={isLoading}
+              disabled={isSubmitting}
               className="w-full h-12 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
             >
-              {isLoading ? 'Signing in...' : 'Sign In'}
+              {isSubmitting ? 'Signing in...' : 'Sign In'}
             </Button>
           </form>
 

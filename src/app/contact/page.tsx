@@ -48,7 +48,7 @@ const Contact = () => {
     {
       icon: <Mail className="w-6 h-6" />,
       title: "Email Us",
-      details: "support@tolink.co",
+      details: "sv26551@gmail.com",
       description: "We'll respond within 24 hours"
     },
     {

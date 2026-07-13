@@ -2,6 +2,16 @@
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
 const API_VERSION = '/v1';
 
+export class ApiError extends Error {
+  status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+  }
+}
+
 // API Client with cookie support
 class ApiClient {
   private baseURL: string;
@@ -36,7 +46,7 @@ class ApiClient {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || 'API request failed');
+        throw new ApiError(data.message || 'API request failed', response.status);
       }
 
       return data;

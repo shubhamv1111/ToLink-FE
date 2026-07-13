@@ -47,7 +47,7 @@ export const Navbar = () => {
             <Link href="/analytics" className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors">
               Analytics
             </Link>
-            {isAuthenticated && (
+            {user && (
               <Link href="/dashboard" className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors">
                 Dashboard
               </Link>
@@ -61,10 +61,10 @@ export const Navbar = () => {
           <div className="hidden md:flex items-center gap-4">
             <DarkModeToggle />
             
-            {/* Auth Section */}
-            {isLoading ? (
+            {/* Auth Section — keep avatar visible while cached session revalidates */}
+            {isLoading && !user ? (
               <div className="h-9 w-[168px] rounded-md bg-gray-200/80 dark:bg-gray-700/80 animate-pulse" />
-            ) : isAuthenticated ? (
+            ) : user ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="p-2">
@@ -118,7 +118,7 @@ export const Navbar = () => {
           {/* Mobile Menu Button */}
           <div className="md:hidden flex items-center gap-2">
             <DarkModeToggle />
-            {isAuthenticated && (
+            {user && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="sm" className="p-2">
@@ -181,7 +181,7 @@ export const Navbar = () => {
             <Link href="/analytics" className="block text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors">
               Analytics
             </Link>
-            {isAuthenticated && (
+            {user && (
               <Link href="/dashboard" className="block text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors">
                 Dashboard
               </Link>
@@ -189,7 +189,7 @@ export const Navbar = () => {
             <Link href="/contact" className="block text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors">
               Contact
             </Link>
-            {!isLoading && !isAuthenticated && (
+            {!isLoading && !user && (
               <div className="pt-4 space-y-2">
                 <Link href="/login">
                   <Button variant="outline" className="w-full justify-center">
