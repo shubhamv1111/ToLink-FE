@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
+import { useBackendStatus } from '@/contexts/BackendStatusContext';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -16,6 +17,7 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const { toast } = useToast();
   const { login, isAuthenticated, isLoading } = useAuth();
+  const { isWaking } = useBackendStatus();
   const router = useRouter();
 
   // Redirect if already authenticated
@@ -58,7 +60,9 @@ export default function Login() {
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex items-center justify-center p-4">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600 dark:text-gray-300">Loading...</p>
+          <p className="text-gray-600 dark:text-gray-300">
+            {isWaking ? 'Server start ho raha hai, thoda wait karein...' : 'Loading...'}
+          </p>
         </div>
       </div>
     );

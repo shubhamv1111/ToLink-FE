@@ -2,6 +2,8 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { authApi, User as ApiUser } from '@/lib/api';
+import { useBackendStatus } from '@/contexts/BackendStatusContext';
+import { shouldKeepBackendAlive } from '@/lib/backend-keepalive';
 
 interface User {
   id: string;
@@ -38,12 +40,20 @@ export const useAuth = () => {
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const { isReady, isWaking, wakeBackend } = useBackendStatus();
 
-  // Check if user is already logged in on app start
+  // Check session once backend is awake (or immediately in local dev)
   useEffect(() => {
+    let cancelled = false;
+
     const checkAuth = async () => {
+      if (shouldKeepBackendAlive() && !isReady && isWaking) {
+        return;
+      }
+
       try {
         const userData = await authApi.getMe();
+        if (cancelled) return;
         setUser({
           id: userData.id,
           name: userData.name,
@@ -55,19 +65,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           createdAt: userData.createdAt,
         });
       } catch (error) {
-        // Not authenticated or session expired
+        if (cancelled) return;
         setUser(null);
       } finally {
-        setIsLoading(false);
+        if (!cancelled) {
+          setIsLoading(false);
+        }
       }
     };
 
     checkAuth();
-  }, []);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isReady, isWaking]);
 
   const login = async (email: string, password: string): Promise<boolean> => {
     setIsLoading(true);
     try {
+      if (shouldKeepBackendAlive()) {
+        await wakeBackend();
+      }
       const userData = await authApi.login(email, password);
       setUser({
         id: userData.id,

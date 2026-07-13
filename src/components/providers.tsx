@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider, useTheme } from "@/contexts/ThemeContext";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { BackendStatusProvider } from "@/contexts/BackendStatusContext";
 import { useState } from "react";
 
 // Wrapper component to conditionally render theme-dependent components
@@ -30,12 +31,14 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
-        <AuthProvider>
-          <TooltipProvider>
-            <ThemeDependentComponents />
-            {children}
-          </TooltipProvider>
-        </AuthProvider>
+        <BackendStatusProvider>
+          <AuthProvider>
+            <TooltipProvider>
+              <ThemeDependentComponents />
+              {children}
+            </TooltipProvider>
+          </AuthProvider>
+        </BackendStatusProvider>
       </ThemeProvider>
     </QueryClientProvider>
   );
