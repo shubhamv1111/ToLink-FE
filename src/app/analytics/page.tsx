@@ -62,13 +62,26 @@ const Analytics = () => {
         }));
         setUserUrls(mapped);
         
-        // Load clicks per URL data
-        const range = selectedPeriod === '7days' ? '7d' : selectedPeriod === '30days' ? '30d' : '90d';
-        const clicksData = await analyticsApi.getClicksPerUrl(range);
+        const range =
+          selectedPeriod === '7days'
+            ? '7d'
+            : selectedPeriod === '30days'
+              ? '30d'
+              : selectedPeriod === '90days'
+                ? '90d'
+                : 'all';
+
+        const overviewParams =
+          selectedUrl === 'all'
+            ? { scope: 'user' as const, range }
+            : { scope: 'link' as const, linkId: selectedUrl, range };
+
+        const [clicksData, overview] = await Promise.all([
+          analyticsApi.getClicksPerUrl(range),
+          analyticsApi.getOverview(overviewParams),
+        ]);
+
         setClicksPerUrl(clicksData.perUrl || {});
-        
-        // Load analytics metadata
-        const overview = await analyticsApi.getOverview({ scope: 'user', range });
         setStatsMeta(overview);
       } catch (error) {
         console.error('Failed to load analytics:', error);
@@ -78,7 +91,7 @@ const Analytics = () => {
     };
     
     loadData();
-  }, [isAuthenticated, selectedPeriod]);
+  }, [isAuthenticated, selectedPeriod, selectedUrl]);
 
   const getSeriesForUrl = (urlId: string): ClickPoint[] => {
     const series = clicksPerUrl[urlId] || [];
@@ -204,12 +217,13 @@ const Analytics = () => {
       }
       const totalClicks = merged.reduce((s, p) => s + p.clicks, 0);
       const avgDailyClicks = merged.length ? Math.round(totalClicks / merged.length) : 0;
+      const fallbackTotal = userUrls.reduce((sum, url) => sum + url.clicks, 0);
       return {
         clicksData: merged,
-        totalClicks,
-        uniqueVisitors: Math.round(totalClicks * (statsMeta?.stats?.uniqueVisitorsRatio ?? 0.7)),
+        totalClicks: totalClicks > 0 ? totalClicks : (statsMeta?.stats?.totalClicks ?? fallbackTotal),
+        uniqueVisitors: statsMeta?.stats?.uniqueVisitors ?? 0,
         clickRate: statsMeta?.stats?.clickRate ?? '0',
-        avgDailyClicks
+        avgDailyClicks: avgDailyClicks > 0 ? avgDailyClicks : (statsMeta?.stats?.avgDailyClicks ?? 0)
       };
     } else {
       const url = userUrls.find(u => u.id === selectedUrl);
@@ -242,10 +256,10 @@ const Analytics = () => {
       }));
       return {
         clicksData: enriched,
-        totalClicks,
-        uniqueVisitors: Math.round(totalClicks * (statsMeta?.stats?.uniqueVisitorsRatio ?? 0.75)),
+        totalClicks: totalClicks > 0 ? totalClicks : (statsMeta?.stats?.totalClicks ?? url.clicks),
+        uniqueVisitors: statsMeta?.stats?.uniqueVisitors ?? 0,
         clickRate: statsMeta?.stats?.clickRate ?? '0',
-        avgDailyClicks,
+        avgDailyClicks: avgDailyClicks > 0 ? avgDailyClicks : (statsMeta?.stats?.avgDailyClicks ?? 0),
         expiredMarker,
         inactiveAreas: getInactiveAreas(series, url)
       } as any;
