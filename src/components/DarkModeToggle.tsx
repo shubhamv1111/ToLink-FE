@@ -8,25 +8,11 @@ import { useTheme } from '@/contexts/ThemeContext';
 export const DarkModeToggle: React.FC = () => {
   const { theme, toggleTheme, mounted } = useTheme();
 
-  // Prevent hydration mismatch
-  if (!mounted) {
-    return (
-      <Button
-        variant="ghost"
-        size="sm"
-        className="w-9 h-9 p-0"
-        aria-label="Toggle dark mode"
-      >
-        <Sun className="w-4 h-4" />
-      </Button>
-    );
-  }
-
   return (
     <Button
       variant="ghost"
       size="sm"
-      onClick={toggleTheme}
+      onClick={mounted ? toggleTheme : undefined}
       className="w-9 h-9 p-0"
       aria-label="Toggle dark mode"
     >

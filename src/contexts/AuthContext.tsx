@@ -27,6 +27,33 @@ interface AuthContextType {
   updateProfilePhoto: (photoUrl: string) => Promise<boolean>;
 }
 
+const AUTH_USER_CACHE_KEY = 'tolink_auth_user';
+
+function getCachedUser(): User | null {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+
+  try {
+    const cached = sessionStorage.getItem(AUTH_USER_CACHE_KEY);
+    return cached ? (JSON.parse(cached) as User) : null;
+  } catch {
+    return null;
+  }
+}
+
+function cacheUser(user: User | null): void {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  if (user) {
+    sessionStorage.setItem(AUTH_USER_CACHE_KEY, JSON.stringify(user));
+  } else {
+    sessionStorage.removeItem(AUTH_USER_CACHE_KEY);
+  }
+}
+
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const useAuth = () => {
@@ -38,8 +65,8 @@ export const useAuth = () => {
 };
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [user, setUser] = useState<User | null>(() => getCachedUser());
+  const [isLoading, setIsLoading] = useState(() => getCachedUser() === null);
   const { isReady, isWaking, wakeBackend } = useBackendStatus();
 
   // Check session once backend is awake (or immediately in local dev)
@@ -54,7 +81,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         const userData = await authApi.getMe();
         if (cancelled) return;
-        setUser({
+        const nextUser: User = {
           id: userData.id,
           name: userData.name,
           email: userData.email,
@@ -63,10 +90,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           isGoogleAccount: userData.isGoogleAccount,
           hasPassword: userData.hasPassword,
           createdAt: userData.createdAt,
-        });
+        };
+        setUser(nextUser);
+        cacheUser(nextUser);
       } catch (error) {
         if (cancelled) return;
         setUser(null);
+        cacheUser(null);
       } finally {
         if (!cancelled) {
           setIsLoading(false);
@@ -88,7 +118,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         await wakeBackend();
       }
       const userData = await authApi.login(email, password);
-      setUser({
+      const nextUser: User = {
         id: userData.id,
         name: userData.name,
         email: userData.email,
@@ -97,7 +127,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isGoogleAccount: userData.isGoogleAccount,
         hasPassword: userData.hasPassword,
         createdAt: userData.createdAt,
-      });
+      };
+      setUser(nextUser);
+      cacheUser(nextUser);
       return true;
     } catch (error) {
       throw error;
@@ -110,7 +142,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoading(true);
     try {
       const userData = await authApi.signup(name, email, password);
-      setUser({
+      const nextUser: User = {
         id: userData.id,
         name: userData.name,
         email: userData.email,
@@ -119,7 +151,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isGoogleAccount: userData.isGoogleAccount,
         hasPassword: userData.hasPassword,
         createdAt: userData.createdAt,
-      });
+      };
+      setUser(nextUser);
+      cacheUser(nextUser);
       return true;
     } catch (error) {
       throw error;
@@ -135,6 +169,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.error('Logout error:', error);
     } finally {
       setUser(null);
+      cacheUser(null);
     }
   };
 
@@ -146,14 +181,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         name: data.name,
         email: data.email,
       });
-      setUser({
+      const nextUser: User = {
         ...user,
         id: userData.id,
         name: userData.name,
         email: userData.email,
         role: userData.role,
         createdAt: userData.createdAt,
-      });
+      };
+      setUser(nextUser);
+      cacheUser(nextUser);
       return true;
     } catch (error) {
       console.error('Profile update error:', error);
@@ -170,7 +207,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       const updatedUser = { ...user, profilePhoto: photoUrl };
       setUser(updatedUser);
-      localStorage.setItem('tolink_user', JSON.stringify(updatedUser));
+      cacheUser(updatedUser);
       return true;
     } catch (error) {
       console.error('Profile photo update error:', error);

@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link';
 import React from 'react';
 import { Link2, Menu, X, User, LogOut, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -11,7 +12,7 @@ import { useState } from 'react';
 
 export const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const { user, isAuthenticated, logout } = useAuth();
+  const { user, isAuthenticated, logout, isLoading } = useAuth();
 
   const handleLogout = () => {
     logout();
@@ -34,26 +35,26 @@ export const Navbar = () => {
 
           {/* Desktop Navigation - Centered */}
           <div className="hidden md:flex items-center gap-8 absolute left-1/2 transform -translate-x-1/2">
-            <a href="/" className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors">
+            <Link href="/" className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors">
               Home
-            </a>
-            <a href="/features" className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors">
+            </Link>
+            <Link href="/features" className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors">
               Features
-            </a>
-            <a href="/about" className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors">
+            </Link>
+            <Link href="/about" className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors">
               About
-            </a>
-            <a href="/analytics" className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors">
+            </Link>
+            <Link href="/analytics" className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors">
               Analytics
-            </a>
+            </Link>
             {isAuthenticated && (
-              <a href="/dashboard" className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors">
+              <Link href="/dashboard" className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors">
                 Dashboard
-              </a>
+              </Link>
             )}
-            <a href="/contact" className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors">
+            <Link href="/contact" className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors">
               Contact
-            </a>
+            </Link>
           </div>
 
           {/* Right Side - Auth & Theme */}
@@ -61,7 +62,9 @@ export const Navbar = () => {
             <DarkModeToggle />
             
             {/* Auth Section */}
-            {isAuthenticated ? (
+            {isLoading ? (
+              <div className="h-9 w-[168px] rounded-md bg-gray-200/80 dark:bg-gray-700/80 animate-pulse" />
+            ) : isAuthenticated ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="p-2">
@@ -83,10 +86,10 @@ export const Navbar = () => {
                     </p>
                   </div>
                   <DropdownMenuItem asChild>
-                    <a href="/profile" className="flex items-center gap-2">
+                    <Link href="/profile" className="flex items-center gap-2">
                       <User className="w-4 h-4" />
                       Profile
-                    </a>
+                    </Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem 
@@ -100,14 +103,14 @@ export const Navbar = () => {
               </DropdownMenu>
             ) : (
               <>
-                <a href="/login">
+                <Link href="/login">
                   <Button variant="outline">Login</Button>
-                </a>
-                <a href="/signup">
+                </Link>
+                <Link href="/signup">
                   <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
                     Sign Up
                   </Button>
-                </a>
+                </Link>
               </>
             )}
           </div>
@@ -137,10 +140,10 @@ export const Navbar = () => {
                     </p>
                   </div>
                   <DropdownMenuItem asChild>
-                    <a href="/profile" className="flex items-center gap-2">
+                    <Link href="/profile" className="flex items-center gap-2">
                       <User className="w-4 h-4" />
                       Profile
-                    </a>
+                    </Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem 
@@ -166,38 +169,38 @@ export const Navbar = () => {
         {/* Mobile Navigation */}
         {isMenuOpen && (
           <div className="md:hidden border-t dark:border-gray-700 py-4 space-y-4">
-            <a href="/" className="block text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors">
+            <Link href="/" className="block text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors">
               Home
-            </a>
-            <a href="/features" className="block text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors">
+            </Link>
+            <Link href="/features" className="block text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors">
               Features
-            </a>
-            <a href="/about" className="block text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors">
+            </Link>
+            <Link href="/about" className="block text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors">
               About
-            </a>
-            <a href="/analytics" className="block text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors">
+            </Link>
+            <Link href="/analytics" className="block text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors">
               Analytics
-            </a>
+            </Link>
             {isAuthenticated && (
-              <a href="/dashboard" className="block text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors">
+              <Link href="/dashboard" className="block text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors">
                 Dashboard
-              </a>
+              </Link>
             )}
-            <a href="/contact" className="block text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors">
+            <Link href="/contact" className="block text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors">
               Contact
-            </a>
-            {!isAuthenticated && (
+            </Link>
+            {!isLoading && !isAuthenticated && (
               <div className="pt-4 space-y-2">
-                <a href="/login">
+                <Link href="/login">
                   <Button variant="outline" className="w-full justify-center">
                     Login
                   </Button>
-                </a>
-                <a href="/signup">
+                </Link>
+                <Link href="/signup">
                   <Button className="w-full justify-center bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
                     Sign Up
                   </Button>
-                </a>
+                </Link>
               </div>
             )}
           </div>
